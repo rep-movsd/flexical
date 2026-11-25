@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+*.local
+.DS_Store
+
+# Raw dictionary sources — words.txt is the only one we ship.
+12dicts-6.0.2/
+12dicts-6.0.2.zip

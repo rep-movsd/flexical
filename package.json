@@ -1,0 +1,37 @@
+{
+  "name": "wordtwist",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "npm run build && vite preview",
+    "deploy": "npm run build && wrangler deploy",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.worker.json --noEmit && tsc -p tsconfig.node.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cf-typegen": "wrangler types",
+    "db:migrate:local": "wrangler d1 execute wordtwist --local --file ./src/server/db/migrations/0001_init.sql",
+    "db:migrate:remote": "wrangler d1 execute wordtwist --remote --file ./src/server/db/migrations/0001_init.sql"
+  },
+  "dependencies": {
+    "hono": "^4.13.22",
+    "preact": "^11.2.0",
+    "preact-router": "^4.1.2"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.70.1",
+    "@cloudflare/workers-types": "^5.20261125.1",
+    "@preact/preset-vite": "^2.10.6",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.168.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "workerd@1.20261117.1": true,
+    "workerd@1.20261123.1": true
+  }
+}
