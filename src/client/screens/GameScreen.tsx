@@ -20,6 +20,8 @@ interface Props {
   date?: string;
 }
 
+type PauseReason = "too_short" | "duplicate" | "not_in_rack" | "unknown";
+
 interface State {
   loading: boolean;
   error: string | null;
@@ -31,6 +33,8 @@ interface State {
   message: { text: string; kind: "ok" | "err" } | null;
   /** True while an error is showing: the clock and ghosts are frozen. */
   paused: boolean;
+  /** Why we paused, so resuming can clear the input for un-fixable words. */
+  pauseReason: PauseReason | null;
   elapsed: number;
   running: boolean;
   locked: boolean;
@@ -54,6 +58,7 @@ const EMPTY: State = {
   draft: "",
   message: null,
   paused: false,
+  pauseReason: null,
   elapsed: 0,
   running: false,
   locked: false,
@@ -123,15 +128,35 @@ export class GameScreen extends Component<Props, State> {
     if (locked || submitting) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
-    // Any key resumes from a paused (error) state — including Backspace, arrows, etc.
     if (paused) {
       if (["Shift", "Control", "Alt", "Meta", "CapsLock", "Tab"].includes(event.key)) return;
-      this.setState({ paused: false });
-      // Enter just resumes; it does not resubmit the word that errored.
+      // Resuming from a "not in dictionary" pause also clears the draft + message.
+      const clear = this.state.pauseReason === "unknown";
+      const resume = (patch: Partial<State>): void =>
+        this.setState((prev) => ({
+          paused: false,
+          pauseReason: null,
+          draft: clear ? "" : prev.draft,
+          message: null,
+          ...patch,
+        }));
+
       if (event.key === "Enter") {
+        resume({});
         event.preventDefault();
-        return;
+      } else if (/^[a-zA-Z]$/.test(event.key)) {
+        resume({ draft: (clear ? "" : this.state.draft) + event.key.toUpperCase() });
+        event.preventDefault();
+      } else if (event.key === "Backspace") {
+        resume({ draft: clear ? "" : this.state.draft.slice(0, -1) });
+        event.preventDefault();
+      } else if (event.key === "Escape") {
+        this.setState({ draft: "", message: null, paused: false, pauseReason: null });
+      } else {
+        // Any other key (arrows, digits, …) just resumes.
+        resume({});
       }
+      return;
     }
 
     const el = document.activeElement as HTMLElement | null;
@@ -141,16 +166,16 @@ export class GameScreen extends Component<Props, State> {
 
     if (/^[a-zA-Z]$/.test(event.key)) {
       const letter = event.key.toUpperCase();
-      this.setState((prev) => ({ draft: prev.draft + letter, paused: false }));
+      this.setState((prev) => ({ draft: prev.draft + letter, paused: false, pauseReason: null }));
       event.preventDefault();
     } else if (event.key === "Backspace") {
-      this.setState((prev) => ({ draft: prev.draft.slice(0, -1), paused: false }));
+      this.setState((prev) => ({ draft: prev.draft.slice(0, -1), paused: false, pauseReason: null }));
       event.preventDefault();
     } else if (event.key === "Enter") {
       this.tryWord();
       event.preventDefault();
     } else if (event.key === "Escape") {
-      this.setState({ draft: "", message: null, paused: false });
+      this.setState({ draft: "", message: null, paused: false, pauseReason: null });
     }
   };
 
@@ -210,7 +235,15 @@ export class GameScreen extends Component<Props, State> {
   private pick = (letter: string): void => {
     const el = document.activeElement as HTMLElement | null;
     if (el && el.tagName === "BUTTON") el.blur();
-    this.setState((prev) => ({ draft: prev.draft + letter, paused: false }));
+    this.setState((prev) => {
+      const clear = prev.paused && prev.pauseReason === "unknown";
+      return {
+        draft: (clear ? "" : prev.draft) + letter,
+        message: prev.paused ? null : prev.message,
+        paused: false,
+        pauseReason: null,
+      };
+    });
   };
 
   /** Ask the server for this word's badge marks (sun/moon need the seeds). */
@@ -237,23 +270,24 @@ export class GameScreen extends Component<Props, State> {
     if (!word) return;
 
     // Failures pause the clock and the ghost race until the next key press.
-    const fail = (text: string): void => this.setState({ message: { text, kind: "err" }, paused: true });
+    const fail = (reason: PauseReason, text: string): void =>
+      this.setState({ message: { text, kind: "err" }, paused: true, pauseReason: reason });
 
     if (word.length < MIN_WORD_LENGTH) {
-      fail(`Too short — ${MIN_WORD_LENGTH}+ letters.`);
+      fail("too_short", `Too short — ${MIN_WORD_LENGTH}+ letters.`);
       return;
     }
     if (found.some((entry) => entry.word === word)) {
-      fail("Already found that one.");
+      fail("duplicate", "Already found that one.");
       return;
     }
     const allowed = toLetterSet(game.letters);
     if (!isBuildable(word, allowed)) {
-      fail("Uses letters that aren't allowed.");
+      fail("not_in_rack", "Uses letters that aren't allowed.");
       return;
     }
     if (!dict.has(word)) {
-      fail("Not in the dictionary.");
+      fail("unknown", "Not in the dictionary.");
       return;
     }
 
@@ -264,6 +298,7 @@ export class GameScreen extends Component<Props, State> {
       draft: "",
       message: { text: `${word.toUpperCase()}  +${points}`, kind: "ok" },
       paused: false,
+      pauseReason: null,
     }));
     void this.classify(word);
   };
@@ -292,6 +327,7 @@ export class GameScreen extends Component<Props, State> {
         locked: result.locked,
         running: false,
         paused: false,
+        pauseReason: null,
         bestScore: Math.max(result.bestScore, this.state.bestScore),
         badgeWords,
         found: result.accepted.map((word) => ({
@@ -324,6 +360,7 @@ export class GameScreen extends Component<Props, State> {
       result: null,
       played: false,
       paused: false,
+      pauseReason: null,
       badgeWords: EMPTY_BADGE_WORDS,
       running: true,
     });
@@ -408,7 +445,14 @@ export class GameScreen extends Component<Props, State> {
             <Letters letters={game.letters} onPick={this.pick} disabled={locked} />
             <WordEntry
               value={draft}
-              onInput={(value) => this.setState({ draft: value, paused: false })}
+              onInput={(value) =>
+                this.setState((prev) => ({
+                  draft: value,
+                  message: prev.paused ? null : prev.message,
+                  paused: false,
+                  pauseReason: null,
+                }))
+              }
               onSubmit={this.tryWord}
               disabled={locked}
             />
