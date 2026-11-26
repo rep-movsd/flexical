@@ -123,6 +123,17 @@ export class GameScreen extends Component<Props, State> {
     if (locked || submitting) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
+    // Any key resumes from a paused (error) state — including Backspace, arrows, etc.
+    if (paused) {
+      if (["Shift", "Control", "Alt", "Meta", "CapsLock", "Tab"].includes(event.key)) return;
+      this.setState({ paused: false });
+      // Enter just resumes; it does not resubmit the word that errored.
+      if (event.key === "Enter") {
+        event.preventDefault();
+        return;
+      }
+    }
+
     const el = document.activeElement as HTMLElement | null;
     const inField =
       !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
@@ -136,9 +147,7 @@ export class GameScreen extends Component<Props, State> {
       this.setState((prev) => ({ draft: prev.draft.slice(0, -1), paused: false }));
       event.preventDefault();
     } else if (event.key === "Enter") {
-      // While paused, the next key only resumes — it does not resubmit.
-      if (paused) this.setState({ paused: false });
-      else this.tryWord();
+      this.tryWord();
       event.preventDefault();
     } else if (event.key === "Escape") {
       this.setState({ draft: "", message: null, paused: false });
@@ -404,12 +413,16 @@ export class GameScreen extends Component<Props, State> {
               disabled={locked}
             />
 
-            {message && (
-              <p class={message.kind === "ok" ? "flash flash--ok" : "flash flash--err"}>
-                {message.text}
-                {message.kind === "err" && !locked && <span class="flash__hint"> — press any key to resume</span>}
-              </p>
-            )}
+            <div class="flash-slot">
+              {message && (
+                <p class={message.kind === "ok" ? "flash flash--ok" : "flash flash--err"}>
+                  {message.text}
+                  {message.kind === "err" && !locked && (
+                    <span class="flash__hint"> — press any key to resume</span>
+                  )}
+                </p>
+              )}
+            </div>
 
             {result && (
               <div class="result">

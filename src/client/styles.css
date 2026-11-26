@@ -208,12 +208,18 @@ h3 {
 
 .board-frame {
   display: flex;
-  gap: 16px;
   align-items: flex-start;
 }
 
 .pane {
+  box-sizing: border-box;
   min-width: 0;
+  padding: 0 8px;
+}
+
+.pane--left {
+  flex: 0 0 20%;
+  min-height: 1px;
 }
 
 .pane--mid {
@@ -222,20 +228,12 @@ h3 {
   gap: 16px;
 }
 
-.pane--left,
 .pane--right {
-  flex: 1 1 0;
+  flex: 0 0 20%;
   display: grid;
   gap: 16px;
-}
-
-.pane--right {
   position: sticky;
   top: 84px;
-}
-
-.pane--left {
-  min-height: 1px;
 }
 
 .game__head {
@@ -364,8 +362,14 @@ h3 {
 
 /* ---------- Flash / result ---------- */
 
+.flash-slot {
+  /* Reserved for the (possibly two-line) message so the panel never resizes. */
+  min-height: 3.75rem;
+  margin-top: 16px;
+}
+
 .flash {
-  margin: 16px 0 0;
+  margin: 0;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   font-weight: 700;
