@@ -25,6 +25,8 @@ export class Shell extends Component<{ children?: ComponentChildren }> {
     const isMobile = ctx?.store.isMobile ?? false;
     const path = ctx?.store.path ?? "/";
     const session = ctx?.store.session ?? null;
+    // The game board uses the full screen width; other pages stay narrow.
+    const wide = path === "/" || path.startsWith("/play");
 
     return (
       <div class={isMobile ? "shell shell--mobile" : "shell shell--desktop"}>
@@ -33,7 +35,7 @@ export class Shell extends Component<{ children?: ComponentChildren }> {
         ) : (
           <DesktopNav path={path} username={session?.username ?? null} />
         )}
-        <main class="content">{this.props.children}</main>
+        <main class={wide ? "content content--wide" : "content"}>{this.props.children}</main>
       </div>
     );
   }

@@ -76,6 +76,11 @@ h3 {
   padding: 20px 16px;
 }
 
+/* The game board spans the full screen width. */
+.content--wide {
+  max-width: none;
+}
+
 .topbar {
   position: sticky;
   top: 0;
@@ -208,28 +213,29 @@ h3 {
 
 .board-frame {
   display: flex;
+  width: 100%;
+  gap: 16px;
   align-items: flex-start;
 }
 
 .pane {
   box-sizing: border-box;
   min-width: 0;
-  padding: 0 8px;
 }
 
 .pane--left {
-  flex: 0 0 20%;
+  flex: 20 1 0;
   min-height: 1px;
 }
 
 .pane--mid {
-  flex: 0 0 60%;
+  flex: 60 1 0;
   display: grid;
   gap: 16px;
 }
 
 .pane--right {
-  flex: 0 0 20%;
+  flex: 20 1 0;
   display: grid;
   gap: 16px;
   position: sticky;
@@ -776,6 +782,7 @@ h3 {
 @media (max-width: 1023px) {
   .board-frame {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .pane--left {
@@ -785,7 +792,6 @@ h3 {
   .pane--mid,
   .pane--right {
     flex: 1 1 auto;
-    width: 100%;
   }
 
   .pane--right {
