@@ -5,8 +5,10 @@ import { Store } from "./store";
 import { AppContext } from "./context";
 import { Shell } from "./components/Shell";
 import { GameScreen } from "./screens/GameScreen";
-import { AuthScreen } from "./screens/AuthScreen";
+import { ArchiveScreen } from "./screens/ArchiveScreen";
 import { LeaderboardScreen } from "./screens/LeaderboardScreen";
+import { AllTimeScreen } from "./screens/AllTimeScreen";
+import { AuthScreen } from "./screens/AuthScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { NotFound } from "./screens/NotFound";
 
@@ -52,9 +54,12 @@ export class App extends Component {
         <Shell>
           <Router onChange={(e: { url: string }) => this.store.setPath(e.url)}>
             <Route path="/" component={GameScreen} />
-            <Route path="/leaderboard" component={LeaderboardScreen} />
-            <Route path="/profile" component={ProfileScreen} />
+            <Route path="/play/:date" component={GameScreen} />
+            <Route path="/archive" component={ArchiveScreen} />
+            <Route path="/board/:date" component={LeaderboardScreen} />
+            <Route path="/alltime" component={AllTimeScreen} />
             <Route path="/signin" component={AuthScreen} />
+            <Route path="/profile" component={ProfileScreen} />
             <Route default component={NotFound} />
           </Router>
         </Shell>

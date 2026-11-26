@@ -1,88 +1,166 @@
 import { describe, expect, it } from "vitest";
+import { computeBadges } from "./badges";
 import { createDictionary } from "./dictionary";
-import { RACK_SIZE, canBuild, generateRack } from "./rack";
-import { classifySubmission, scoreWord, DEFAULT_RULES } from "./scoring";
+import { allowedLetters, isBuildable, toLetterSet } from "./letters";
+import { computeK, pointsForLength, scoreWords } from "./scoring";
+import { pickSeeds, seedCandidates } from "./seeds";
+import { progressAt, type GhostWord } from "./timeline";
+import { classifyWords } from "./validation";
 
-// These tests describe the contracts the engine must satisfy. They pass against
-// the placeholder implementations and are meant to keep passing as you fill in
-// the real game logic. Add your own cases as you go.
+// Contracts for the game engine. These describe the rules in game.md and should
+// stay green as the game evolves.
 
-const rack = { letters: ["A", "E", "E", "I", "P", "R", "S"] };
-
-describe("canBuild", () => {
-  it("accepts a word using available letters once each", () => {
-    expect(canBuild("PEAR", rack)).toBe(true);
+describe("allowedLetters", () => {
+  it("returns the distinct letters of both seeds, sorted", () => {
+    expect(allowedLetters("MOUNTAIN", "TRAINERS")).toEqual(
+      "AEIMNORSTU".split(""),
+    );
   });
 
-  it("accepts a word that reuses a repeated letter", () => {
-    expect(canBuild("SEEP", rack)).toBe(true);
-  });
-
-  it("rejects a word needing a letter not on the rack", () => {
-    expect(canBuild("SAFE", rack)).toBe(false);
-  });
-
-  it("rejects a word needing a letter more times than it appears", () => {
-    expect(canBuild("SEEEE", rack)).toBe(false);
+  it("collapses duplicates", () => {
+    expect(allowedLetters("AA", "A")).toEqual(["A"]);
   });
 });
 
-describe("generateRack", () => {
-  it("returns exactly RACK_SIZE letters", () => {
-    expect(generateRack().letters).toHaveLength(RACK_SIZE);
+describe("isBuildable", () => {
+  const set = toLetterSet(allowedLetters("MOUNTAIN", "TRAINERS"));
+
+  it("accepts a word using only allowed letters", () => {
+    expect(isBuildable("STONE", set)).toBe(true);
   });
 
-  it("is deterministic when given a seeded rand", () => {
-    const seq = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7];
-    let i = 0;
-    const rack = generateRack(() => seq[i++ % seq.length]);
-    expect(rack.letters).toHaveLength(RACK_SIZE);
+  it("allows letters to repeat", () => {
+    expect(isBuildable("TENET", set)).toBe(true);
+  });
+
+  it("rejects a word with a disallowed letter", () => {
+    expect(isBuildable("APPLE", set)).toBe(false);
   });
 });
 
-describe("scoreWord", () => {
-  it("scores by length", () => {
-    expect(scoreWord("word")).toBe(DEFAULT_RULES.lengthPoints[4]);
-    expect(scoreWord("words")).toBe(DEFAULT_RULES.lengthPoints[5]);
+describe("scoring", () => {
+  it("scores the longest seed word exactly 2L", () => {
+    for (const L of [8, 9, 10]) {
+      const k = computeK(L);
+      expect(pointsForLength(L, k)).toBe(2 * L);
+    }
+  });
+
+  it("increases with word length", () => {
+    const k = computeK(9);
+    const values = [4, 5, 6, 7, 8, 9].map((n) => pointsForLength(n, k));
+    for (let i = 1; i < values.length; i++) {
+      expect(values[i]).toBeGreaterThan(values[i - 1]);
+    }
   });
 
   it("scores nothing below the minimum length", () => {
-    expect(scoreWord("abc")).toBe(0);
-  });
-});
-
-describe("classifySubmission", () => {
-  const solution = ["pear", "pears", "spare", "spear", "sear"];
-
-  it("accepts valid, non-duplicate words and rejects the rest", () => {
-    const result = classifySubmission({ submitted: ["pear", "PEAR", "zzzz", "sea"], foundSoFar: [], solution });
-    expect(result.accepted).toEqual(["pear"]);
-    expect(result.rejected).toEqual([
-      { word: "pear", reason: "duplicate" },
-      { word: "zzzz", reason: "not_in_rack" },
-      { word: "sea", reason: "too_short" },
-    ]);
-    expect(result.totalScore).toBe(scoreWord("pear"));
+    expect(pointsForLength(3, computeK(9))).toBe(0);
   });
 
-  it("awards the all-words bonus once the solution is complete", () => {
-    const result = classifySubmission({
-      submitted: solution,
-      foundSoFar: [],
-      solution,
-    });
-    expect(result.completed).toBe(true);
-    expect(result.totalScore).toBe(
-      solution.reduce((sum, w) => sum + scoreWord(w), 0) + DEFAULT_RULES.allWordsBonus,
+  it("sums word scores", () => {
+    const k = computeK(10);
+    expect(scoreWords(["word", "words"], k)).toBe(
+      pointsForLength(4, k) + pointsForLength(5, k),
     );
   });
 });
 
-describe("dictionary", () => {
-  it("normalises and de-duplicates", () => {
-    const dict = createDictionary([" Cat ", "cat", "DOG", ""]);
-    expect(dict.size).toBe(2);
-    expect(dict.has("cat")).toBe(true);
-    expect(dict.has("dog")).toBe(true);
+describe("badges", () => {
+  const seedA = "mountain";
+  const seedB = "trainers";
+
+  it("awards sun for seed A and moon for seed B", () => {
+    expect(computeBadges([seedA, seedB], seedA, seedB)).toEqual({
+      sun: true,
+      moon: true,
+      star: false,
+    });
+  });
+
+  it("awards star for a non-seed word at least as long as the shorter seed", () => {
+    expect(computeBadges(["strainer"], seedA, seedB).star).toBe(true);
+  });
+
+  it("does not award star for a short word", () => {
+    expect(computeBadges(["stone"], seedA, seedB).star).toBe(false);
+  });
+});
+
+describe("classifyWords", () => {
+  const dict = createDictionary(["stone", "tenet", "apple", "strainer"]);
+  const allowed = toLetterSet(allowedLetters("MOUNTAIN", "TRAINERS"));
+  const k = computeK(9);
+
+  it("accepts valid words and rejects others with reasons", () => {
+    const result = classifyWords(
+      [
+        { word: "stone" },
+        { word: "STONE" },
+        { word: "apple" },
+        { word: "sea" },
+        { word: "zzzz" },
+      ],
+      allowed,
+      dict,
+      k,
+    );
+    expect(result.accepted).toEqual(["stone"]);
+    expect(result.rejected).toEqual([
+      { word: "stone", reason: "duplicate" },
+      { word: "apple", reason: "not_in_rack" },
+      { word: "sea", reason: "too_short" },
+      { word: "zzzz", reason: "not_in_rack" },
+    ]);
+    expect(result.score).toBe(pointsForLength(5, k));
+  });
+
+  it("reports unknown for a buildable non-word", () => {
+    const result = classifyWords([{ word: "tennet" }], allowed, dict, k);
+    expect(result.rejected).toEqual([{ word: "tennet", reason: "unknown" }]);
+  });
+});
+
+describe("seeds", () => {
+  const dict = createDictionary([
+    "mountain",
+    "trainers",
+    "elephant",
+    "computer",
+    "saturday",
+    "television",
+  ]);
+
+  it("picks two distinct candidates, deterministically", () => {
+    const first = pickSeeds("2026-11-26", dict);
+    const again = pickSeeds("2026-11-26", dict);
+    expect(first[0]).not.toBe(first[1]);
+    expect(again).toEqual(first);
+  });
+
+  it("respects the avoid set", () => {
+    const [a, b] = pickSeeds("2026-11-26", dict);
+    const avoid = new Set([`${[a, b].sort().join("|")}`]);
+    const next = pickSeeds("2026-11-26", dict, avoid);
+    expect([next[0], next[1]].sort().join("|")).not.toBe([a, b].sort().join("|"));
+  });
+
+  it("finds 8–10 letter candidates", () => {
+    expect(seedCandidates(dict).every((w) => w.length >= 8 && w.length <= 10)).toBe(true);
+  });
+});
+
+describe("ghost timeline", () => {
+  const timeline: GhostWord[] = [
+    { len: 4, points: 7, t: 1000 },
+    { len: 5, points: 8, t: 3000 },
+    { len: 8, points: 14, t: 5000 },
+  ];
+
+  it("accumulates as time passes", () => {
+    expect(progressAt(timeline, 0)).toEqual({ score: 0, count: 0 });
+    expect(progressAt(timeline, 1000)).toEqual({ score: 7, count: 1 });
+    expect(progressAt(timeline, 4000)).toEqual({ score: 15, count: 2 });
+    expect(progressAt(timeline, 9999)).toEqual({ score: 29, count: 3 });
   });
 });

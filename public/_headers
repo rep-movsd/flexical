@@ -1,0 +1,3 @@
+# The word list is effectively immutable per deploy; cache it aggressively.
+/words.txt
+  Cache-Control: public, max-age=86400

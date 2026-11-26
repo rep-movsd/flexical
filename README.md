@@ -1,18 +1,19 @@
 # Wordtwist
 
-Find every word you can build from a single Scrabble-style rack. One rack per
-day; sign in to save stats and appear on the leaderboard.
+A daily word game. Each day is built from a hidden pair of long **seed words**;
+you are given the set of letters they contain (reuse them freely) and race to
+find high-scoring words. Sign in to save runs, climb each day's leaderboard, and
+grind past games toward an all-time marathon ranking.
 
-This repository is a **working shell**: the app, auth, API, database and UI are
-done; the **game logic** (rack generation, word solving, scoring) is stubbed in
-`src/shared/engine/` for you to implement.
+Full rules live in [`game.md`](./game.md). The build plan is in
+[`PLAN.md`](./PLAN.md).
 
 ## Stack
 
 - **UI:** Preact (class components) + `preact-router`, responsive CSS
 - **API:** Hono on a Cloudflare Worker
 - **Database:** Cloudflare D1 (SQLite)
-- **Auth:** username + password (PBKDF2 via WebCrypto, opaque D1-backed sessions)
+- **Auth:** username + password (PBKDF2 via WebCrypto, opaque D1 sessions)
 - **Build:** Vite + `@cloudflare/vite-plugin` — one deploy for client + Worker
 - **Tests:** Vitest
 
@@ -20,31 +21,41 @@ done; the **game logic** (rack generation, word solving, scoring) is stubbed in
 
 ```
 index.html                 Vite entry (mounts the SPA)
-words.txt                  38,888 words, 4+ letters, lowercase (the dictionary)
+public/words.txt           38,888 words, 4+ letters, lowercase (the dictionary)
+public/_headers            cache headers for /words.txt
 wrangler.jsonc             Worker + assets + D1 config
 vite.config.ts             Vite + Cloudflare plugin
+game.md                    the game design / rules
+PLAN.md                    implementation plan
 src/
   client/                  Preact app (class components)
     app.tsx                Root: owns Api + Store, resolves session, routing
-    api.ts                 Typed fetch client
-    store.ts               Observable store (session, route, viewport)
-    components/            Shell/nav, Rack, WordEntry, FoundWords, ScorePanel, Timer
-    screens/               GameScreen, AuthScreen, LeaderboardScreen, ProfileScreen
-    styles.css             Responsive styles (mobile bottom tabs / desktop top bar)
+    api.ts                 Typed fetch client (sends X-TZ-Offset)
+    dictionary.ts          loads /words.txt for local validation
+    store.ts / context.ts  observable store + injection
+    components/            Shell/nav, Letters, WordEntry, RacePanel, FoundWords,
+                           ScorePanel, BadgeIcons, Timer
+    screens/               GameScreen, ArchiveScreen, LeaderboardScreen,
+                           AllTimeScreen, AuthScreen, ProfileScreen
+    styles.css             responsive styles (mobile tabs / desktop top bar)
   server/                  Cloudflare Worker (Hono)
     index.ts               App wiring and middleware
+    time.ts                viewer-local date from X-TZ-Offset
+    games.ts               deterministic game generation
     auth/                  password hashing, sessions, middleware
-    routes/                auth, puzzles, leaderboard
+    routes/                auth, games, leaderboard
     db/                    data-access (repo.ts) + migrations/
-    dictionary.ts          loads words.txt into a Dictionary (inlined at build)
+    dictionary.ts          loads public/words.txt into a Dictionary (inlined)
   shared/                  Used by both client and Worker
     types.ts               API/domain types
-    engine/                >>> THE GAME LOGIC YOU WRITE <<<
-      rack.ts              rack type, generateRack(), canBuild()
-      dictionary.ts        Dictionary + parsers
-      solver.ts            solveRack()
-      scoring.ts           Rules, scoreWord(), classifySubmission()
-      engine.test.ts       contract tests for the above
+    engine/                pure game logic
+      letters.ts           allowed-letters set + buildability
+      scoring.ts           points(n) = round(n + K^n), K = L^(1/L)
+      badges.ts            sun / moon / star
+      seeds.ts             deterministic daily seed pair
+      validation.ts        server-side word classification
+      timeline.ts          ghost replay helpers
+      engine.test.ts       contract tests
 ```
 
 ## Run it locally
@@ -63,30 +74,27 @@ npm test                     # vitest (game-engine contract tests)
 npm run build                # emits dist/client + dist/wordtwist
 ```
 
-## Where the game logic lives
+## How a game works
 
-Everything you implement is in `src/shared/engine/` and imported by the Worker.
-Each function has a titled `TODO(game logic)` comment describing what it must do:
+- A **game** = one calendar date (in the viewer's local timezone), defined by a
+  hidden pair of 8–10 letter seed words.
+- **Allowed letters** = the distinct letters of both seeds. Letters may be reused
+  any number of times.
+- A word scores if it is **≥ 4 letters**, uses **only allowed letters**, and is in
+  the dictionary.
+- Points: `round(n + K^n)` with `K = L^(1/L)` (`L` = longer seed length), so the
+  longest seed word scores `2L`.
+- Badges: ☀ found seed A, 🌙 found seed B, ⭐ a non-seed word at least as long as
+  the shorter seed.
+- **Today's game** allows **one submission**. **Past games** can be replayed
+  without limit, keeping your best score. Each game has a leaderboard; the
+  all-time "marathon" board sums your best score on every game.
+- **Revealing** another player's words (from a leaderboard) permanently locks
+  that game for you.
+- **Race mode** replays the top 5 runs for a game as spoiler-free, accurately
+  timed ghosts (score and word count only, never the words).
 
-| Function | File | Responsibility |
-|---|---|---|
-| `generateRack()` | `rack.ts` | Pick the letters for a puzzle (weighted draw; ensure playability). |
-| `solveRack()` | `solver.ts` | All valid words buildable from a rack. Brute force or prefix trie. |
-| `scoreWord()` | `scoring.ts` | Points for one word. |
-| `classifySubmission()` | `scoring.ts` | Accept/reject submitted words and update the score. |
-
-`canBuild()`, `createDictionary()` and `parseDictionary()` are already implemented
-as helpers. The contract tests in `engine.test.ts` pass today and should keep
-passing.
-
-### Why the Worker solves the rack
-
-The Worker generates the rack **and** computes the answer set when a puzzle is
-first requested, then stores the solution in D1. The client only ever sees the
-letters. Submissions are checked server-side, so the leaderboard can be trusted
-and the answers never ship to the browser.
-
-## Authentication
+## Auth
 
 Username + password only (no email, so no password reset by design).
 
@@ -95,28 +103,22 @@ Username + password only (no email, so no password reset by design).
 - `POST /api/auth/logout`
 - `GET  /api/auth/me`
 
-Passwords are hashed with PBKDF2-SHA256 (100k iterations, random per-user salt);
-only the salt/hash/iterations are stored. Sessions are random ids stored in D1
-and delivered as an `httpOnly`, `SameSite=Lax` cookie (`Secure` over HTTPS).
+Passwords are hashed with PBKDF2-SHA256 (100k iterations, random per-user salt).
+Sessions are random ids stored in D1 and delivered as an `httpOnly`,
+`SameSite=Lax` cookie (`Secure` over HTTPS).
 
-To add OAuth later, add nullable `provider` / `provider_id` columns and a unique
-index to `users` — the schema comment in `0001_init.sql` notes this.
+## API
 
-## Game API
+All requests may send `X-TZ-Offset` (minutes) to select the viewer's local day.
 
-- `GET  /api/puzzles/today` → `{ puzzle: { id, letters, maxScore } }`
-- `GET  /api/puzzles/:id`
-- `POST /api/puzzles/:id/submit` `{ words: string[] }` → `SubmitResult`
-- `GET  /api/leaderboard/today`
-
-Anonymous players can play and submit words (nothing is persisted). Signed-in
-players are recorded in `plays` and ranked.
-
-## Data model
-
-`users`, `sessions`, `puzzles`, `plays`, `leagues`, `league_members`. See
-`src/server/db/migrations/0001_init.sql`. Leagues are scaffolded but have no
-routes yet — a leaderboard is `plays` joined to `users` ordered by score.
+- `GET  /api/games/today` → `{ game, me }`
+- `GET  /api/games` → archive list
+- `GET  /api/games/:id` → `{ game, me }`
+- `GET  /api/games/:id/race` → top-5 ghosts (no words)
+- `POST /api/games/:id/submit` `{ words:[{word,t}] }` (auth) → result
+- `GET  /api/games/:id/leaderboard`
+- `POST /api/games/:id/reveal/:username` (auth) → their words + records your lock
+- `GET  /api/leaderboard/alltime`
 
 ## Deploy to Cloudflare (free tier)
 

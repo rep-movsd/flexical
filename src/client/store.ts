@@ -8,13 +8,15 @@ type Listener = () => void;
  */
 export class Store {
   session: PublicUser | null = null;
+
   /** False until the initial /me lookup has resolved. */
   booted = false;
+
   /** Current route path, kept in sync by <Router onChange>. */
   path = typeof window !== "undefined" ? window.location.pathname : "/";
+
   /** True on narrow viewports; drives which navigation view renders. */
-  isMobile =
-    typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
+  isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
 
   private listeners = new Set<Listener>();
 

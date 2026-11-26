@@ -9,8 +9,8 @@ interface NavItem {
 
 const ITEMS: NavItem[] = [
   { href: "/", label: "Play", icon: "▦" },
-  { href: "/leaderboard", label: "Leaders", icon: "★" },
-  { href: "/profile", label: "Profile", icon: "☺" },
+  { href: "/archive", label: "Archive", icon: "▤" },
+  { href: "/alltime", label: "Marathon", icon: "★" },
 ];
 
 /**

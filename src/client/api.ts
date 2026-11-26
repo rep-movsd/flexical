@@ -1,10 +1,16 @@
 import type {
+  AllTimeRow,
   ApiError,
-  LeaderboardRow,
+  ArchiveGame,
+  GameResponse,
+  LeaderboardResponse,
   PublicUser,
-  RackView,
+  RaceResponse,
+  RevealResult,
   SubmitResult,
+  TimelineEntry,
 } from "../shared/types";
+import { tzOffset } from "./time";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -22,18 +28,21 @@ export class Api {
   constructor(private readonly base = "") {}
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const res = await fetch(this.base + path, {
+    const headers: Record<string, string> = { "X-TZ-Offset": String(tzOffset()) };
+    if (body !== undefined) headers["Content-Type"] = "application/json";
+
+    const response = await fetch(this.base + path, {
       method,
       credentials: "same-origin",
-      headers: body !== undefined ? { "Content-Type": "application/json" } : undefined,
+      headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
 
-    const data = res.status === 204 ? null : await res.json().catch(() => null);
+    const data = response.status === 204 ? null : await response.json().catch(() => null);
 
-    if (!res.ok) {
+    if (!response.ok) {
       const err = (data ?? {}) as ApiError;
-      throw new ApiRequestError(res.status, err.error ?? "request_failed", err.message);
+      throw new ApiRequestError(response.status, err.error ?? "request_failed", err.message);
     }
     return data as T;
   }
@@ -63,24 +72,45 @@ export class Api {
     await this.request<{ ok: true }>("POST", "/api/auth/logout");
   }
 
-  async getTodayPuzzle(): Promise<RackView> {
-    const { puzzle } = await this.request<{ puzzle: RackView }>("GET", "/api/puzzles/today");
-    return puzzle;
+  getTodayGame(): Promise<GameResponse> {
+    return this.request<GameResponse>("GET", "/api/games/today");
   }
 
-  submitWords(puzzleId: string, words: string[]): Promise<SubmitResult> {
-    return this.request<SubmitResult>(
-      "POST",
-      `/api/puzzles/${encodeURIComponent(puzzleId)}/submit`,
-      { words },
-    );
+  getGame(id: string): Promise<GameResponse> {
+    return this.request<GameResponse>("GET", `/api/games/${encodeURIComponent(id)}`);
   }
 
-  async getTodayLeaderboard(): Promise<LeaderboardRow[]> {
-    const { rows } = await this.request<{ id: string; rows: LeaderboardRow[] }>(
+  async listGames(): Promise<ArchiveGame[]> {
+    const { games } = await this.request<{ games: ArchiveGame[] }>("GET", "/api/games");
+    return games;
+  }
+
+  async getRace(id: string): Promise<RaceResponse> {
+    return this.request<RaceResponse>("GET", `/api/games/${encodeURIComponent(id)}/race`);
+  }
+
+  submit(id: string, words: TimelineEntry[]): Promise<SubmitResult> {
+    return this.request<SubmitResult>("POST", `/api/games/${encodeURIComponent(id)}/submit`, {
+      words,
+    });
+  }
+
+  getGameLeaderboard(id: string): Promise<LeaderboardResponse> {
+    return this.request<LeaderboardResponse>(
       "GET",
-      "/api/leaderboard/today",
+      `/api/games/${encodeURIComponent(id)}/leaderboard`,
     );
+  }
+
+  reveal(id: string, username: string): Promise<RevealResult> {
+    return this.request<RevealResult>(
+      "POST",
+      `/api/games/${encodeURIComponent(id)}/reveal/${encodeURIComponent(username)}`,
+    );
+  }
+
+  async getAllTime(): Promise<AllTimeRow[]> {
+    const { rows } = await this.request<{ rows: AllTimeRow[] }>("GET", "/api/leaderboard/alltime");
     return rows;
   }
 }

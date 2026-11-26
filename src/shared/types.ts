@@ -1,5 +1,11 @@
 // Shapes shared by the client and the Worker. Keep this file free of any
-// browser- or Worker-specific types so both sides can import it.
+// browser- or Worker-specific types. Domain types that the engine already owns
+// (badges, timeline) are re-exported rather than duplicated.
+
+import type { Badges } from "./engine/badges";
+import type { GhostWord, TimelineEntry } from "./engine/timeline";
+
+export type { Badges, GhostWord, TimelineEntry };
 
 /** A user as exposed over the API (never includes password material). */
 export interface PublicUser {
@@ -8,39 +14,93 @@ export interface PublicUser {
   createdAt: number;
 }
 
-/** A user's standing on a single puzzle's leaderboard. */
+/** The puzzle as sent to the client. Seed words are never included. */
+export interface GameView {
+  id: string;
+  date: string;
+  letters: string[];
+  longestSeedLength: number;
+  shortestSeedLength: number;
+  /** Scoring constant K derived from longestSeedLength. */
+  k: number;
+}
+
+/** The current player's state for a game. */
+export interface MeView {
+  played: boolean;
+  revealed: boolean;
+  locked: boolean;
+  bestScore: number;
+  words: string[];
+  timeline: TimelineEntry[];
+  badges: Badges;
+}
+
+export interface GameResponse {
+  game: GameView;
+  me: MeView | null;
+}
+
+/** A replayed top run, shown in race mode without revealing words. */
+export interface Ghost {
+  username: string;
+  score: number;
+  wordsFound: number;
+  badges: Badges;
+  timeline: GhostWord[];
+}
+
+export interface RaceResponse {
+  ghosts: Ghost[];
+}
+
+export interface SubmitResult {
+  accepted: string[];
+  rejected: { word: string; reason: string }[];
+  score: number;
+  badges: Badges;
+  bestScore: number;
+  words: string[];
+  locked: boolean;
+}
+
+export interface ArchiveGame {
+  id: string;
+  date: string;
+  isToday: boolean;
+  bestScore: number;
+  revealed: boolean;
+  locked: boolean;
+}
+
 export interface LeaderboardRow {
   rank: number;
   username: string;
   score: number;
   wordsFound: number;
+  badges: Badges;
 }
 
-/** The rack a puzzle is built from, as sent to the client. */
-export interface RackView {
-  /** Stable id for this puzzle (e.g. "daily:2026-11-25"). */
-  id: string;
-  /** The letters available to the player, e.g. ["A","E","E","I","P","R","S"]. */
-  letters: string[];
-  /** Best possible score for this rack, for progress bars. Optional early on. */
-  maxScore: number;
+export interface LeaderboardResponse {
+  game: GameView;
+  rows: LeaderboardRow[];
 }
 
-/** Result of submitting a batch of words for a puzzle. */
-export interface SubmitResult {
-  /** Words the server accepted on this submission. */
-  accepted: string[];
-  /** Words the server rejected, with a reason. */
-  rejected: { word: string; reason: RejectReason }[];
-  /** Points gained by this submission. */
-  scoreGain: number;
-  /** The player's cumulative score for this puzzle after this submission. */
-  totalScore: number;
-  /** Every distinct word the player has found so far (accepted, cumulative). */
+export interface AllTimeRow {
+  rank: number;
+  username: string;
+  total: number;
+  games: number;
+  words: number;
+}
+
+export interface RevealResult {
+  username: string;
+  score: number;
+  badges: Badges;
   words: string[];
+  locked: boolean;
 }
-
-export type RejectReason = "unknown" | "too_short" | "duplicate" | "not_in_rack";
 
 export interface ApiError {
   error: string;

@@ -1,11 +1,19 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { dailyPuzzleId, getLeaderboard } from "../db/repo";
+import { allTime } from "../db/repo";
 
 export const leaderboardRoutes = new Hono<AppEnv>();
 
-leaderboardRoutes.get("/today", async (c) => {
-  const id = dailyPuzzleId();
-  const rows = await getLeaderboard(c.env.DB, id, 50);
-  return c.json({ id, rows });
+/** All-time "marathon" board: sum of each player's best score on every game. */
+leaderboardRoutes.get("/alltime", async (c) => {
+  const rows = await allTime(c.env.DB, 100);
+  return c.json({
+    rows: rows.map((row, index) => ({
+      rank: index + 1,
+      username: row.username,
+      total: row.total,
+      games: row.games,
+      words: row.words,
+    })),
+  });
 });
