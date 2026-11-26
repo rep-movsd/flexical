@@ -462,7 +462,48 @@ h3 {
   color: #ffd479;
 }
 
-/* ---------- Found words ---------- */
+/* ---------- Found words (one lane per length) ---------- */
+
+.found {
+  margin-top: 16px;
+}
+
+.found__lanes {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.found__lane {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+
+.found__lane:first-child {
+  border-top: none;
+}
+
+.found__lane-len {
+  flex: 0 0 30px;
+  text-align: center;
+  padding: 4px 0;
+  border-radius: 8px;
+  background: var(--bg-elev-2);
+  color: var(--fg-muted);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.found__lane-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding-top: 2px;
+}
 
 .chips {
   display: flex;
@@ -476,7 +517,7 @@ h3 {
 .chip {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 5px;
   padding: 4px 10px;
   border-radius: 999px;
   background: var(--bg-elev-2);
@@ -484,16 +525,20 @@ h3 {
   letter-spacing: 0.04em;
 }
 
+.chip .badge-icon {
+  font-size: 0.8rem;
+}
+
 .chip__pts {
   color: var(--accent-2);
   font-size: 0.72rem;
 }
 
-.found__len {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--fg-muted);
+.score__badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
 }
 
 /* ---------- Forms ---------- */

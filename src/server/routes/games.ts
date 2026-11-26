@@ -6,6 +6,7 @@ import { ensureGame } from "../games";
 import { localDate, parseOffset } from "../time";
 import {
   classifyWords,
+  computeBadgeWords,
   computeBadges,
   computeK,
   normalizeWord,
@@ -61,6 +62,7 @@ function submitResponse(game: GameRow, play: PlayRow, locked: boolean) {
     rejected: [] as { word: string; reason: string }[],
     score: play.score,
     badges: computeBadges(words, game.seed_a, game.seed_b),
+    badgeWords: computeBadgeWords(words, game.seed_a, game.seed_b),
     bestScore: play.score,
     words,
     locked,
@@ -87,6 +89,7 @@ async function meView(
       words: [] as string[],
       timeline: [] as TimelineEntry[],
       badges: computeBadges([], game.seed_a, game.seed_b),
+      badgeWords: computeBadgeWords([], game.seed_a, game.seed_b),
     };
   }
 
@@ -100,6 +103,7 @@ async function meView(
     words,
     timeline,
     badges: computeBadges(words, game.seed_a, game.seed_b),
+    badgeWords: computeBadgeWords(words, game.seed_a, game.seed_b),
   };
 }
 
@@ -245,6 +249,7 @@ gameRoutes.post("/:id/submit", requireUser, async (c) => {
     rejected: result.rejected,
     score: result.score,
     badges: computeBadges(result.accepted, game.seed_a, game.seed_b),
+    badgeWords: computeBadgeWords(result.accepted, game.seed_a, game.seed_b),
     bestScore,
     words: result.accepted,
     locked: isToday,

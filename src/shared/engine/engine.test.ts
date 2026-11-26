@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBadges } from "./badges";
+import { computeBadgeWords, computeBadges } from "./badges";
 import { createDictionary } from "./dictionary";
 import { allowedLetters, isBuildable, toLetterSet } from "./letters";
 import { computeK, pointsForLength, scoreWords } from "./scoring";
@@ -84,6 +84,14 @@ describe("badges", () => {
 
   it("does not award star for a short word", () => {
     expect(computeBadges(["stone"], seedA, seedB).star).toBe(false);
+  });
+
+  it("reports which words earned each badge", () => {
+    expect(computeBadgeWords(["mandarin", "hardship"], "snappish", "mandarin")).toEqual({
+      sun: null,
+      moon: "mandarin",
+      star: "hardship",
+    });
   });
 });
 

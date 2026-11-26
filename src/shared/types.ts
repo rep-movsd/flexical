@@ -2,10 +2,10 @@
 // browser- or Worker-specific types. Domain types that the engine already owns
 // (badges, timeline) are re-exported rather than duplicated.
 
-import type { Badges } from "./engine/badges";
+import type { BadgeKind, BadgeWords, Badges } from "./engine/badges";
 import type { GhostWord, TimelineEntry } from "./engine/timeline";
 
-export type { Badges, GhostWord, TimelineEntry };
+export type { BadgeKind, BadgeWords, Badges, GhostWord, TimelineEntry };
 
 /** A user as exposed over the API (never includes password material). */
 export interface PublicUser {
@@ -34,6 +34,7 @@ export interface MeView {
   words: string[];
   timeline: TimelineEntry[];
   badges: Badges;
+  badgeWords: BadgeWords;
 }
 
 export interface GameResponse {
@@ -59,6 +60,7 @@ export interface SubmitResult {
   rejected: { word: string; reason: string }[];
   score: number;
   badges: Badges;
+  badgeWords: BadgeWords;
   bestScore: number;
   words: string[];
   locked: boolean;

@@ -3,8 +3,8 @@ import { normalizeWord } from "./letters";
 // ---------------------------------------------------------------------------
 // Badges
 // ---------------------------------------------------------------------------
-// Awarded per run, shown on leaderboards. They signal achievement without
-// revealing any words.
+// Awarded per run, shown on leaderboards and on the player's own found words.
+// They signal achievement without revealing words the player did not find.
 
 export interface Badges {
   /** Found seed word A (the first seed). */
@@ -15,11 +15,20 @@ export interface Badges {
   star: boolean;
 }
 
-export function computeBadges(
+export type BadgeKind = "sun" | "moon" | "star";
+
+/** Which specific words (if any) earned each badge for this run. */
+export interface BadgeWords {
+  sun: string | null;
+  moon: string | null;
+  star: string | null;
+}
+
+export function computeBadgeWords(
   words: Iterable<string>,
   seedA: string,
   seedB: string,
-): Badges {
+): BadgeWords {
   const found = new Set<string>();
   for (const word of words) found.add(normalizeWord(word));
 
@@ -27,14 +36,31 @@ export function computeBadges(
   const b = normalizeWord(seedB);
   const shorter = Math.min(a.length, b.length);
 
-  let star = false;
-  for (const word of found) {
+  let star: string | null = null;
+  for (const word of [...found].sort()) {
     if (word === a || word === b) continue;
     if (word.length >= shorter) {
-      star = true;
+      star = word;
       break;
     }
   }
 
-  return { sun: found.has(a), moon: found.has(b), star };
+  return {
+    sun: found.has(a) ? a : null,
+    moon: found.has(b) ? b : null,
+    star,
+  };
+}
+
+export function computeBadges(
+  words: Iterable<string>,
+  seedA: string,
+  seedB: string,
+): Badges {
+  const badgeWords = computeBadgeWords(words, seedA, seedB);
+  return {
+    sun: badgeWords.sun !== null,
+    moon: badgeWords.moon !== null,
+    star: badgeWords.star !== null,
+  };
 }

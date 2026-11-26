@@ -6,7 +6,7 @@ import { loadDictionary } from "../dictionary";
 import { localDateString } from "../time";
 import { MIN_WORD_LENGTH, pointsForLength } from "../../shared/engine/scoring";
 import { isBuildable, toLetterSet } from "../../shared/engine/letters";
-import type { GameView, Ghost, SubmitResult } from "../../shared/types";
+import type { BadgeKind, BadgeWords, GameView, Ghost, SubmitResult } from "../../shared/types";
 import { Letters } from "../components/Letters";
 import { WordEntry } from "../components/WordEntry";
 import { FoundWords, type FoundWord } from "../components/FoundWords";
@@ -35,9 +35,12 @@ interface State {
   revealed: boolean;
   played: boolean;
   bestScore: number;
+  badgeWords: BadgeWords;
   submitting: boolean;
   result: SubmitResult | null;
 }
+
+const EMPTY_BADGE_WORDS: BadgeWords = { sun: null, moon: null, star: null };
 
 const EMPTY: State = {
   loading: true,
@@ -54,9 +57,25 @@ const EMPTY: State = {
   revealed: false,
   played: false,
   bestScore: 0,
+  badgeWords: EMPTY_BADGE_WORDS,
   submitting: false,
   result: null,
 };
+
+/** Badge marks for one word, given what we know about the seeds. */
+function marksFor(
+  word: string,
+  badgeWords: BadgeWords | undefined,
+  shortestSeedLength: number,
+): BadgeKind[] {
+  const bw = badgeWords ?? EMPTY_BADGE_WORDS;
+  const marks: BadgeKind[] = [];
+  if (word === bw.sun) marks.push("sun");
+  if (word === bw.moon) marks.push("moon");
+  const isSeed = word === bw.sun || word === bw.moon;
+  if (!isSeed && word.length >= shortestSeedLength) marks.push("star");
+  return marks;
+}
 
 /**
  * Play screen. Words are validated locally for instant feedback; the server
@@ -72,8 +91,11 @@ export class GameScreen extends Component<Props, State> {
   private alive = true;
   /** Attempt start, used for per-word timestamps (t = 0). */
   private t0 = Date.now();
+  /** word → timestamp, used when building the submit payload. */
+  private timestamps = new Map<string, number>();
 
   componentDidMount(): void {
+    window.addEventListener("keydown", this.onKeyDown);
     this.load(this.props.date);
   }
 
@@ -83,8 +105,35 @@ export class GameScreen extends Component<Props, State> {
 
   componentWillUnmount(): void {
     this.alive = false;
-    if (this.timer) clearInterval(this.timer);
+    window.removeEventListener("keydown", this.onKeyDown);
+    this.stopTimer();
   }
+
+  /** Type anywhere: letters build the word without focusing the input. */
+  private onKeyDown = (event: KeyboardEvent): void => {
+    const { locked, submitting } = this.state;
+    if (locked || submitting) return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    const el = document.activeElement as HTMLElement | null;
+    const inField =
+      !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+    if (inField) return; // the input handles its own typing
+
+    if (/^[a-zA-Z]$/.test(event.key)) {
+      const letter = event.key.toUpperCase();
+      this.setState((prev) => ({ draft: prev.draft + letter, message: null }));
+      event.preventDefault();
+    } else if (event.key === "Backspace") {
+      this.setState((prev) => ({ draft: prev.draft.slice(0, -1) }));
+      event.preventDefault();
+    } else if (event.key === "Enter") {
+      this.tryWord();
+      event.preventDefault();
+    } else if (event.key === "Escape") {
+      this.setState({ draft: "", message: null });
+    }
+  };
 
   private startTimer(): void {
     if (this.timer) return;
@@ -122,10 +171,12 @@ export class GameScreen extends Component<Props, State> {
         ? me.timeline.map((entry) => ({
             word: entry.word,
             points: pointsForLength(entry.word.length, game.k),
+            marks: [],
           }))
         : [];
 
       this.t0 = Date.now();
+      this.timestamps = new Map();
       const locked = me?.locked ?? false;
       this.setState({
         ...EMPTY,
@@ -138,6 +189,7 @@ export class GameScreen extends Component<Props, State> {
         revealed: me?.revealed ?? false,
         played: me?.played ?? false,
         bestScore: me?.bestScore ?? 0,
+        badgeWords: me?.badgeWords ?? EMPTY_BADGE_WORDS,
         running: !locked,
       });
       if (!locked) this.startTimer();
@@ -152,6 +204,8 @@ export class GameScreen extends Component<Props, State> {
   }
 
   private pick = (letter: string): void => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && el.tagName === "BUTTON") el.blur();
     this.setState((prev) => ({ draft: prev.draft + letter, message: null }));
   };
 
@@ -184,19 +238,13 @@ export class GameScreen extends Component<Props, State> {
     }
 
     const points = pointsForLength(word.length, game.k);
-    const t = Date.now() - this.t0;
+    this.timestamps.set(word, Date.now() - this.t0);
     this.setState((prev) => ({
-      found: [...prev.found, { word, points }],
+      found: [...prev.found, { word, points, marks: [] }],
       draft: "",
       message: { text: `${word.toUpperCase()}  +${points}`, kind: "ok" },
-      // keep it simple: store t on the entry via parallel array
     }));
-    // Attach the timestamp separately (FoundWord is display-only).
-    this.timestamps.set(word, t);
   };
-
-  /** word → timestamp, used when building the submit payload. */
-  private timestamps = new Map<string, number>();
 
   private submit = async (): Promise<void> => {
     const { game, found, submitting, locked } = this.state;
@@ -222,9 +270,11 @@ export class GameScreen extends Component<Props, State> {
         locked: result.locked,
         running: false,
         bestScore: Math.max(result.bestScore, this.state.bestScore),
+        badgeWords: result.badgeWords ?? EMPTY_BADGE_WORDS,
         found: result.accepted.map((word) => ({
           word,
           points: pointsForLength(word.length, game.k),
+          marks: [],
         })),
       });
     } catch (error) {
@@ -244,7 +294,6 @@ export class GameScreen extends Component<Props, State> {
 
   private newAttempt = (): void => {
     this.timestamps = new Map();
-    this.timestamps.clear();
     this.t0 = Date.now();
     this.setState({
       found: [],
@@ -263,8 +312,24 @@ export class GameScreen extends Component<Props, State> {
   }
 
   render() {
-    const { loading, error, game, locked, revealed, played, running, elapsed, draft, message, ghosts, found, submitting, result, bestScore } =
-      this.state;
+    const {
+      loading,
+      error,
+      game,
+      locked,
+      revealed,
+      played,
+      running,
+      elapsed,
+      draft,
+      message,
+      ghosts,
+      found,
+      badgeWords,
+      submitting,
+      result,
+      bestScore,
+    } = this.state;
 
     if (loading) {
       return (
@@ -283,78 +348,87 @@ export class GameScreen extends Component<Props, State> {
 
     const isToday = game.id === localDateString();
     const score = this.score();
+    const bw = badgeWords ?? EMPTY_BADGE_WORDS;
+    const badges = { sun: !!bw.sun, moon: !!bw.moon, star: !!bw.star };
+    const foundWithMarks: FoundWord[] = found.map((entry) => ({
+      ...entry,
+      marks: marksFor(entry.word, bw, game.shortestSeedLength),
+    }));
 
     return (
-      <div class="game">
-        <section class="panel game__main">
-          <header class="game__head">
-            <div>
-              <h1 class="title">{isToday ? "Today's game" : game.date}</h1>
-              <p class="muted">
-                {game.letters.length} letters · seeds are {game.shortestSeedLength}–
-                {game.longestSeedLength} letters
+      <>
+        <div class="game">
+          <section class="panel game__main">
+            <header class="game__head">
+              <div>
+                <h1 class="title">{isToday ? "Today's game" : game.date}</h1>
+                <p class="muted">
+                  {game.letters.length} letters · seeds are {game.shortestSeedLength}–
+                  {game.longestSeedLength} letters
+                </p>
+              </div>
+              <Timer seconds={Math.floor(elapsed / 1000)} running={running} />
+            </header>
+
+            {locked && (
+              <p class="notice">
+                {revealed
+                  ? "You revealed this game, so it's locked."
+                  : "You've played today's game. Come back tomorrow, or revisit past games."}
+                <a href={`/board/${game.id}`}> See the board</a>
               </p>
-            </div>
-            <Timer seconds={Math.floor(elapsed / 1000)} running={running} />
-          </header>
+            )}
 
-          {locked && (
-            <p class="notice">
-              {revealed
-                ? "You revealed this game, so it's locked."
-                : "You've played today's game. Come back tomorrow, or revisit past games."}
-              <a href={`/board/${game.id}`}> See the board</a>
-            </p>
-          )}
+            <Letters letters={game.letters} onPick={this.pick} disabled={locked} />
+            <WordEntry
+              value={draft}
+              onInput={(value) => this.setState({ draft: value })}
+              onSubmit={this.tryWord}
+              onClear={this.clear}
+              disabled={locked}
+            />
 
-          <Letters letters={game.letters} onPick={this.pick} disabled={locked} />
-          <WordEntry
-            value={draft}
-            onInput={(value) => this.setState({ draft: value })}
-            onSubmit={this.tryWord}
-            onClear={this.clear}
-            disabled={locked}
-          />
+            {message && (
+              <p class={message.kind === "ok" ? "flash flash--ok" : "flash flash--err"}>{message.text}</p>
+            )}
 
-          {message && (
-            <p class={message.kind === "ok" ? "flash flash--ok" : "flash flash--err"}>{message.text}</p>
-          )}
-
-          {!locked && (
-            <div class="actions">
-              <button
-                type="button"
-                class="btn btn--primary"
-                disabled={submitting || found.length === 0}
-                onClick={this.submit}
-              >
-                {submitting ? "Submitting…" : isToday ? "Submit run" : "Submit best"}
-              </button>
-              {!isToday && played && (
-                <button type="button" class="btn btn--ghost" onClick={this.newAttempt}>
-                  New attempt
+            {!locked && (
+              <div class="actions">
+                <button
+                  type="button"
+                  class="btn btn--primary"
+                  disabled={submitting || found.length === 0}
+                  onClick={this.submit}
+                >
+                  {submitting ? "Submitting…" : isToday ? "Submit run" : "Submit best"}
                 </button>
-              )}
-            </div>
-          )}
+                {!isToday && played && (
+                  <button type="button" class="btn btn--ghost" onClick={this.newAttempt}>
+                    New attempt
+                  </button>
+                )}
+              </div>
+            )}
 
-          {result && (
-            <div class="result">
-              <p class="result__score">
-                Scored <strong>{result.score}</strong>
-                {!result.locked && <span class="muted"> · best {bestScore}</span>}
-              </p>
-              <BadgeIcons badges={result.badges} showEmpty />
-            </div>
-          )}
-        </section>
+            {result && (
+              <div class="result">
+                <p class="result__score">
+                  Scored <strong>{result.score}</strong>
+                  {!result.locked && <span class="muted"> · best {bestScore}</span>}
+                </p>
+                <BadgeIcons badges={result.badges} showEmpty />
+              </div>
+            )}
+          </section>
 
-        <aside class="game__side">
-          <ScorePanel score={score} foundCount={found.length} />
-          <RacePanel ghosts={ghosts} elapsed={elapsed} selfScore={score} />
-          <FoundWords words={found} />
-        </aside>
-      </div>
+          <aside class="game__side">
+            <ScorePanel score={score} foundCount={found.length} badges={badges} showBadges={played} />
+            <RacePanel ghosts={ghosts} elapsed={elapsed} selfScore={score} />
+          </aside>
+        </div>
+
+        <FoundWords words={foundWithMarks} maxLength={game.longestSeedLength} minLength={MIN_WORD_LENGTH} />
+      </>
     );
   }
 }
