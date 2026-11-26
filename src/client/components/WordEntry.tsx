@@ -4,14 +4,13 @@ interface Props {
   value: string;
   onInput: (value: string) => void;
   onSubmit: () => void;
-  onClear: () => void;
   disabled?: boolean;
 }
 
-/** Word input. Works with a physical keyboard and with taps on the rack. */
+/** Word input. No buttons — Enter submits, Escape clears (handled globally). */
 export class WordEntry extends Component<Props> {
   render() {
-    const { value, onInput, onSubmit, onClear, disabled } = this.props;
+    const { value, onInput, onSubmit, disabled } = this.props;
     return (
       <form
         class="entry"
@@ -34,12 +33,6 @@ export class WordEntry extends Component<Props> {
             onInput(raw.replace(/[^a-zA-Z]/g, "").toUpperCase());
           }}
         />
-        <button type="button" class="btn btn--ghost" onClick={onClear} disabled={disabled || !value}>
-          Clear
-        </button>
-        <button type="submit" class="btn btn--primary" disabled={disabled || !value}>
-          Enter
-        </button>
       </form>
     );
   }
