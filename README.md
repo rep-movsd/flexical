@@ -110,6 +110,7 @@ Username + password only (no email, so no password reset by design).
 - `GET  /api/auth/me`
 
 Passwords are hashed with PBKDF2-SHA256 (100k iterations, random per-user salt).
+Policy: at least 6 characters, including a letter and a number (symbols allowed).
 Sessions are random ids stored in D1 and delivered as an `httpOnly`,
 `SameSite=Lax` cookie (`Secure` over HTTPS).
 

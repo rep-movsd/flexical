@@ -4,11 +4,11 @@ import type { Context } from "hono";
 import type { AppEnv } from "../env";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { SESSION_COOKIE, createSession, deleteSession } from "../auth/session";
+import { passwordProblem } from "../../shared/password";
 
 export const authRoutes = new Hono<AppEnv>();
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,16}$/;
-const MIN_PASSWORD_LENGTH = 8;
 
 function setSessionCookie(c: Context<AppEnv>, id: string, expiresAt: number): void {
   // Secure only over TLS, so local http://localhost dev still works.
@@ -33,11 +33,9 @@ authRoutes.post("/register", async (c) => {
       400,
     );
   }
-  if (password.length < MIN_PASSWORD_LENGTH) {
-    return c.json(
-      { error: "weak_password", message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters.` },
-      400,
-    );
+  const problem = passwordProblem(password);
+  if (problem) {
+    return c.json({ error: "weak_password", message: problem }, 400);
   }
 
   const lower = username.toLowerCase();

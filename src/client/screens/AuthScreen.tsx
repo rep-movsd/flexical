@@ -2,6 +2,7 @@ import { Component } from "preact";
 import { route } from "preact-router";
 import { AppContext, type AppContextValue } from "../context";
 import { ApiRequestError } from "../api";
+import { passwordProblem } from "../../shared/password";
 
 interface State {
   mode: "login" | "register";
@@ -33,6 +34,15 @@ export class AuthScreen extends Component<{}, State> {
 
     const { api, store } = this.context as AppContextValue;
     const { mode, username, password } = this.state;
+
+    if (mode === "register") {
+      const problem = passwordProblem(password);
+      if (problem) {
+        this.setState({ busy: false, error: problem, errorCode: "weak_password" });
+        return;
+      }
+    }
+
     try {
       const user =
         mode === "register"
@@ -117,6 +127,9 @@ export class AuthScreen extends Component<{}, State> {
                 }
               />
             </label>
+            {isRegister && (
+              <p class="muted">At least 6 characters, including a letter and a number.</p>
+            )}
 
             {error && <p class="error">{error}</p>}
             {suggestRegister && (
