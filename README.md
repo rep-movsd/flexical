@@ -122,6 +122,7 @@ All requests may send `X-TZ-Offset` (minutes) to select the viewer's local day.
 - `GET  /api/games` → archive list
 - `GET  /api/games/:id` → `{ game, me }`
 - `GET  /api/games/:id/race` → top-5 ghosts (no words)
+- `POST /api/games/:id/check` → live badge marks for words you've typed
 - `POST /api/games/:id/submit` `{ words:[{word,t}] }` (auth) → result
 - `GET  /api/games/:id/leaderboard`
 - `POST /api/games/:id/reveal/:username` (auth) → their words + records your lock

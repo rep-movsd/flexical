@@ -9,9 +9,12 @@ import {
   computeBadgeWords,
   computeBadges,
   computeK,
+  isBuildable,
   normalizeWord,
   pointsForLength,
   toLetterSet,
+  wordMarks,
+  MIN_WORD_LENGTH,
   type Badges,
   type TimelineEntry,
 } from "../../shared/engine";
@@ -161,6 +164,43 @@ gameRoutes.get("/:id/race", async (c) => {
     };
   });
   return c.json({ ghosts });
+});
+
+gameRoutes.post("/:id/check", async (c) => {
+  const game = await getGame(c.env.DB, c.req.param("id"));
+  if (!game) return c.json({ error: "not_found" }, 404);
+
+  const body = await c.req.json().catch(() => null);
+  const words: string[] = Array.isArray(body?.words)
+    ? (body.words as unknown[]).filter((w): w is string => typeof w === "string")
+    : [];
+
+  const allowed = toLetterSet(game.letters.split(""));
+  const dict = getDictionary();
+
+  const results = words.map((raw) => {
+    const word = normalizeWord(raw);
+    let valid = true;
+    let reason: string | null = null;
+    if (word.length < MIN_WORD_LENGTH) {
+      valid = false;
+      reason = "too_short";
+    } else if (!isBuildable(word, allowed)) {
+      valid = false;
+      reason = "not_in_rack";
+    } else if (!dict.has(word)) {
+      valid = false;
+      reason = "unknown";
+    }
+    return {
+      word,
+      valid,
+      reason,
+      marks: valid ? wordMarks(word, game.seed_a, game.seed_b) : [],
+    };
+  });
+
+  return c.json({ results });
 });
 
 gameRoutes.get("/:id/leaderboard", async (c) => {

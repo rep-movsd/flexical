@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBadgeWords, computeBadges } from "./badges";
+import { computeBadgeWords, computeBadges, wordMarks } from "./badges";
 import { createDictionary } from "./dictionary";
 import { allowedLetters, isBuildable, toLetterSet } from "./letters";
 import { computeK, pointsForLength, scoreWords } from "./scoring";
@@ -92,6 +92,12 @@ describe("badges", () => {
       moon: "mandarin",
       star: "hardship",
     });
+  });
+
+  it("classifies a single word's marks", () => {
+    expect(wordMarks("mandarin", "snappish", "mandarin")).toEqual(["moon"]);
+    expect(wordMarks("hardship", "snappish", "mandarin")).toEqual(["star"]);
+    expect(wordMarks("stone", "snappish", "mandarin")).toEqual([]);
   });
 });
 

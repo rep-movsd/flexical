@@ -1,4 +1,4 @@
-import { Component } from "preact";
+import { Component, type ComponentChildren } from "preact";
 import type { Badges } from "../../shared/types";
 import { BadgeIcons } from "./BadgeIcons";
 
@@ -8,9 +8,11 @@ interface Props {
   badges: Badges;
   /** Only show the badge row once the run has been recorded. */
   showBadges: boolean;
+  /** Action buttons (submit / new attempt) rendered at the bottom. */
+  children?: ComponentChildren;
 }
 
-/** Running score for the current attempt, plus this run's badges. */
+/** Points box: running score, words found, badges, and the submit action. */
 export class ScorePanel extends Component<Props> {
   render() {
     const { score, foundCount, badges, showBadges } = this.props;
@@ -31,6 +33,7 @@ export class ScorePanel extends Component<Props> {
             {any ? <BadgeIcons badges={badges} /> : <span class="muted">none yet</span>}
           </div>
         )}
+        {this.props.children}
       </section>
     );
   }

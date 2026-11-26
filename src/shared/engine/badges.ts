@@ -64,3 +64,17 @@ export function computeBadges(
     star: badgeWords.star !== null,
   };
 }
+
+/** Badge marks for a single word (already-known to be a valid word). */
+export function wordMarks(word: string, seedA: string, seedB: string): BadgeKind[] {
+  const w = normalizeWord(word);
+  const a = normalizeWord(seedA);
+  const b = normalizeWord(seedB);
+  const shorter = Math.min(a.length, b.length);
+
+  const marks: BadgeKind[] = [];
+  if (w === a) marks.push("sun");
+  if (w === b) marks.push("moon");
+  if (w !== a && w !== b && w.length >= shorter) marks.push("star");
+  return marks;
+}

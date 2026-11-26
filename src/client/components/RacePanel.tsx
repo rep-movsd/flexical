@@ -1,5 +1,5 @@
 import { Component } from "preact";
-import type { Ghost } from "../../shared/types";
+import type { Badges, Ghost } from "../../shared/types";
 import { progressAt } from "../../shared/engine/timeline";
 import { BadgeIcons } from "./BadgeIcons";
 
@@ -8,6 +8,8 @@ interface Props {
   /** Elapsed milliseconds since the attempt started. */
   elapsed: number;
   selfScore: number;
+  /** The player's own badges (shown once known). */
+  selfBadges: Badges;
 }
 
 function width(value: number, max: number): string {
@@ -20,7 +22,7 @@ function width(value: number, max: number): string {
  */
 export class RacePanel extends Component<Props> {
   render() {
-    const { ghosts, elapsed, selfScore } = this.props;
+    const { ghosts, elapsed, selfScore, selfBadges } = this.props;
 
     if (ghosts.length === 0) {
       return (
@@ -41,7 +43,9 @@ export class RacePanel extends Component<Props> {
         <ol class="lanes">
           <li class="lane lane--self">
             <div class="lane__head">
-              <span class="lane__name">You</span>
+              <span class="lane__name">
+                You <BadgeIcons badges={selfBadges} />
+              </span>
               <span class="lane__score">{selfScore}</span>
             </div>
             <div class="lane__bar">

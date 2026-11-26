@@ -167,11 +167,12 @@ export class GameScreen extends Component<Props, State> {
       const race = await api.getRace(game.id).catch(() => ({ ghosts: [] as Ghost[] }));
       if (!this.alive) return;
 
+      const badgeWords = me?.badgeWords ?? EMPTY_BADGE_WORDS;
       const found: FoundWord[] = me?.played
         ? me.timeline.map((entry) => ({
             word: entry.word,
             points: pointsForLength(entry.word.length, game.k),
-            marks: [],
+            marks: marksFor(entry.word, badgeWords, game.shortestSeedLength),
           }))
         : [];
 
@@ -189,7 +190,7 @@ export class GameScreen extends Component<Props, State> {
         revealed: me?.revealed ?? false,
         played: me?.played ?? false,
         bestScore: me?.bestScore ?? 0,
-        badgeWords: me?.badgeWords ?? EMPTY_BADGE_WORDS,
+        badgeWords,
         running: !locked,
       });
       if (!locked) this.startTimer();
@@ -212,6 +213,23 @@ export class GameScreen extends Component<Props, State> {
   private clear = (): void => {
     this.setState({ draft: "", message: null });
   };
+
+  /** Ask the server for this word's badge marks (sun/moon need the seeds). */
+  private async classify(word: string): Promise<void> {
+    const { game } = this.state;
+    if (!game) return;
+    const { api } = this.context as AppContextValue;
+    try {
+      const { results } = await api.checkWords(game.id, [word]);
+      const marks: BadgeKind[] = results[0]?.marks ?? [];
+      if (!this.alive) return;
+      this.setState((prev) => ({
+        found: prev.found.map((entry) => (entry.word === word ? { ...entry, marks } : entry)),
+      }));
+    } catch {
+      // Leave marks empty on failure; the submit result is authoritative anyway.
+    }
+  }
 
   private tryWord = (): void => {
     const { draft, game, dict, found, locked } = this.state;
@@ -244,6 +262,7 @@ export class GameScreen extends Component<Props, State> {
       draft: "",
       message: { text: `${word.toUpperCase()}  +${points}`, kind: "ok" },
     }));
+    void this.classify(word);
   };
 
   private submit = async (): Promise<void> => {
@@ -263,6 +282,7 @@ export class GameScreen extends Component<Props, State> {
     try {
       const result = await api.submit(game.id, words);
       if (!this.alive) return;
+      const badgeWords = result.badgeWords ?? EMPTY_BADGE_WORDS;
       this.setState({
         submitting: false,
         result,
@@ -270,11 +290,11 @@ export class GameScreen extends Component<Props, State> {
         locked: result.locked,
         running: false,
         bestScore: Math.max(result.bestScore, this.state.bestScore),
-        badgeWords: result.badgeWords ?? EMPTY_BADGE_WORDS,
+        badgeWords,
         found: result.accepted.map((word) => ({
           word,
           points: pointsForLength(word.length, game.k),
-          marks: [],
+          marks: marksFor(word, badgeWords, game.shortestSeedLength),
         })),
       });
     } catch (error) {
@@ -302,6 +322,7 @@ export class GameScreen extends Component<Props, State> {
       elapsed: 0,
       result: null,
       played: false,
+      badgeWords: EMPTY_BADGE_WORDS,
       running: true,
     });
     this.startTimer();
@@ -350,10 +371,6 @@ export class GameScreen extends Component<Props, State> {
     const score = this.score();
     const bw = badgeWords ?? EMPTY_BADGE_WORDS;
     const badges = { sun: !!bw.sun, moon: !!bw.moon, star: !!bw.star };
-    const foundWithMarks: FoundWord[] = found.map((entry) => ({
-      ...entry,
-      marks: marksFor(entry.word, bw, game.shortestSeedLength),
-    }));
 
     return (
       <>
@@ -392,24 +409,6 @@ export class GameScreen extends Component<Props, State> {
               <p class={message.kind === "ok" ? "flash flash--ok" : "flash flash--err"}>{message.text}</p>
             )}
 
-            {!locked && (
-              <div class="actions">
-                <button
-                  type="button"
-                  class="btn btn--primary"
-                  disabled={submitting || found.length === 0}
-                  onClick={this.submit}
-                >
-                  {submitting ? "Submitting…" : isToday ? "Submit run" : "Submit best"}
-                </button>
-                {!isToday && played && (
-                  <button type="button" class="btn btn--ghost" onClick={this.newAttempt}>
-                    New attempt
-                  </button>
-                )}
-              </div>
-            )}
-
             {result && (
               <div class="result">
                 <p class="result__score">
@@ -422,12 +421,30 @@ export class GameScreen extends Component<Props, State> {
           </section>
 
           <aside class="game__side">
-            <ScorePanel score={score} foundCount={found.length} badges={badges} showBadges={played} />
-            <RacePanel ghosts={ghosts} elapsed={elapsed} selfScore={score} />
+            <ScorePanel score={score} foundCount={found.length} badges={badges} showBadges={played}>
+              {!locked && (
+                <div class="score__actions">
+                  <button
+                    type="button"
+                    class="btn btn--primary btn--block"
+                    disabled={submitting || found.length === 0}
+                    onClick={this.submit}
+                  >
+                    {submitting ? "Submitting…" : isToday ? "Submit run" : "Submit best"}
+                  </button>
+                  {!isToday && played && (
+                    <button type="button" class="btn btn--ghost btn--block" onClick={this.newAttempt}>
+                      New attempt
+                    </button>
+                  )}
+                </div>
+              )}
+            </ScorePanel>
+            <RacePanel ghosts={ghosts} elapsed={elapsed} selfScore={score} selfBadges={badges} />
           </aside>
         </div>
 
-        <FoundWords words={foundWithMarks} maxLength={game.longestSeedLength} minLength={MIN_WORD_LENGTH} />
+        <FoundWords words={found} maxLength={game.longestSeedLength} minLength={MIN_WORD_LENGTH} />
       </>
     );
   }

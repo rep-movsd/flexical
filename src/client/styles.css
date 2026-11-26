@@ -442,24 +442,28 @@ h3 {
 
 .badges {
   display: inline-flex;
-  gap: 2px;
+  align-items: center;
+  gap: 4px;
 }
 
 .badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.2em;
+  height: 1.2em;
   font-size: 0.95rem;
   line-height: 1;
+  /* Emoji-presentation glyphs render at a consistent size in one emoji font. */
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji",
+    "Android Emoji", "EmojiOne Color", sans-serif;
+  font-variant-emoji: emoji;
 }
 
-.badge-icon--sun {
-  color: var(--sun);
-}
-
-.badge-icon--moon {
-  color: var(--moon);
-}
-
-.badge-icon--star {
-  color: #ffd479;
+.score__actions {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 /* ---------- Found words (one lane per length) ---------- */

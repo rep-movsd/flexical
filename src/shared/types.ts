@@ -104,6 +104,18 @@ export interface RevealResult {
   locked: boolean;
 }
 
+/** Result of checking a single word live (no persistence). */
+export interface CheckedWord {
+  word: string;
+  valid: boolean;
+  reason: string | null;
+  marks: BadgeKind[];
+}
+
+export interface CheckResponse {
+  results: CheckedWord[];
+}
+
 export interface ApiError {
   error: string;
   message?: string;

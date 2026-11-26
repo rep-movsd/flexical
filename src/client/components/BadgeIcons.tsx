@@ -2,9 +2,11 @@ import { Component } from "preact";
 import type { BadgeKind, Badges } from "../../shared/types";
 
 const META: Record<BadgeKind, { icon: string; title: string }> = {
-  sun: { icon: "☀", title: "Found the sun seed" },
+  // Use the emoji-presentation forms so all three render at a consistent size
+  // in the same emoji font (see .badge-icon in styles.css).
+  sun: { icon: "☀️", title: "Found the sun seed" },
   moon: { icon: "🌙", title: "Found the moon seed" },
-  star: { icon: "★", title: "A long non-seed word" },
+  star: { icon: "⭐", title: "A long non-seed word" },
 };
 
 /** A single badge icon. */

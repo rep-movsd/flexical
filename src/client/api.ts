@@ -2,6 +2,7 @@ import type {
   AllTimeRow,
   ApiError,
   ArchiveGame,
+  CheckResponse,
   GameResponse,
   LeaderboardResponse,
   PublicUser,
@@ -108,6 +109,13 @@ export class Api {
       "GET",
       `/api/games/${encodeURIComponent(id)}/leaderboard`,
     );
+  }
+
+  /** Classify words live (badge marks for words you already typed). */
+  checkWords(id: string, words: string[]): Promise<CheckResponse> {
+    return this.request<CheckResponse>("POST", `/api/games/${encodeURIComponent(id)}/check`, {
+      words,
+    });
   }
 
   reveal(id: string, username: string): Promise<RevealResult> {
