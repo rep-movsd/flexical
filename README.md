@@ -66,6 +66,12 @@ npm run db:migrate:local     # create local D1 tables
 npm run dev                  # http://localhost:5173
 ```
 
+If you changed the schema (or pulled a change that did), reset the local database:
+
+```bash
+npm run db:reset:local       # wipe + recreate local D1 tables
+```
+
 Other scripts:
 
 ```bash

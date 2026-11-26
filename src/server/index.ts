@@ -24,7 +24,10 @@ app.get("/api/profile", requireUser, (c) => c.json({ user: c.get("user") }));
 app.notFound((c) => c.json({ error: "not_found" }, 404));
 app.onError((err, c) => {
   console.error(err);
-  return c.json({ error: "internal_error" }, 500);
+  const message = /no such table/i.test(String((err as Error)?.message))
+    ? "Database not initialised. Run: npm run db:migrate:local"
+    : undefined;
+  return c.json({ error: "internal_error", message }, 500);
 });
 
 export default app;

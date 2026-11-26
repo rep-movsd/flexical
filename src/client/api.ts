@@ -42,7 +42,15 @@ export class Api {
 
     if (!response.ok) {
       const err = (data ?? {}) as ApiError;
-      throw new ApiRequestError(response.status, err.error ?? "request_failed", err.message);
+      const fallback =
+        response.status >= 500
+          ? `Server error (HTTP ${response.status}). If this is a fresh checkout, run: npm run db:migrate:local`
+          : `Request failed (HTTP ${response.status})`;
+      throw new ApiRequestError(
+        response.status,
+        err.error ?? "request_failed",
+        err.message ?? fallback,
+      );
     }
     return data as T;
   }
