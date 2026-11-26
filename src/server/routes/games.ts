@@ -160,6 +160,7 @@ gameRoutes.get("/:id/race", async (c) => {
         len: entry.word.length,
         points: pointsForLength(entry.word.length, k),
         t: clampT(entry.t),
+        marks: wordMarks(entry.word, game.seed_a, game.seed_b),
       })),
     };
   });

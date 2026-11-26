@@ -371,6 +371,12 @@ export class GameScreen extends Component<Props, State> {
     const score = this.score();
     const bw = badgeWords ?? EMPTY_BADGE_WORDS;
     const badges = { sun: !!bw.sun, moon: !!bw.moon, star: !!bw.star };
+    // Live badges for the player's own lane, accumulated from found words.
+    const selfBadges = {
+      sun: found.some((entry) => entry.marks.includes("sun")),
+      moon: found.some((entry) => entry.marks.includes("moon")),
+      star: found.some((entry) => entry.marks.includes("star")),
+    };
 
     return (
       <>
@@ -440,7 +446,7 @@ export class GameScreen extends Component<Props, State> {
                 </div>
               )}
             </ScorePanel>
-            <RacePanel ghosts={ghosts} elapsed={elapsed} selfScore={score} selfBadges={badges} />
+            <RacePanel ghosts={ghosts} elapsed={elapsed} selfScore={score} selfBadges={selfBadges} />
           </aside>
         </div>
 

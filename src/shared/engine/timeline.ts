@@ -1,3 +1,5 @@
+import type { BadgeKind } from "./badges";
+
 // ---------------------------------------------------------------------------
 // Timeline
 // ---------------------------------------------------------------------------
@@ -16,6 +18,8 @@ export interface GhostWord {
   len: number;
   points: number;
   t: number;
+  /** Badge marks this word earned (used to light up the ghost's bar). */
+  marks: BadgeKind[];
 }
 
 export interface GhostProgress {

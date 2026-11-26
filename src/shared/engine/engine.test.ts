@@ -166,9 +166,9 @@ describe("seeds", () => {
 
 describe("ghost timeline", () => {
   const timeline: GhostWord[] = [
-    { len: 4, points: 7, t: 1000 },
-    { len: 5, points: 8, t: 3000 },
-    { len: 8, points: 14, t: 5000 },
+    { len: 4, points: 7, t: 1000, marks: [] },
+    { len: 5, points: 8, t: 3000, marks: [] },
+    { len: 8, points: 14, t: 5000, marks: ["star"] },
   ];
 
   it("accumulates as time passes", () => {
