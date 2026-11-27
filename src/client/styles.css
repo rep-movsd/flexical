@@ -537,6 +537,15 @@ h3 {
   font-size: 0.95rem;
 }
 
+.help kbd {
+  padding: 1px 5px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev-2);
+  font-family: inherit;
+  font-size: 0.85em;
+}
+
 .found__lanes {
   flex: 1 1 auto;
   min-height: 0;

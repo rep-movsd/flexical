@@ -153,7 +153,10 @@ export class FoundWords extends Component<Props> {
             Words must be <strong>4+ letters</strong> and use <strong>only the letters shown</strong>.
             You can reuse a letter as often as you like.
           </li>
-          <li>Longer words score exponentially more.</li>
+          <li>
+            Longer words score exponentially more. The dictionary is custom, so{" "}
+            <strong>inflected words</strong> (e.g. “fewer”, “stones”) are not valid.
+          </li>
           <li>
             <BadgeIcon kind="sun" /> you found the hidden seed word.
           </li>
@@ -162,12 +165,16 @@ export class FoundWords extends Component<Props> {
           </li>
           <li>
             <strong>Today's game</strong> gives you one <strong>3-minute timed attempt</strong> — your{" "}
-            <strong>hare</strong> score. Press <strong>Start</strong> when you're ready; you can
-            pause any time.
+            <strong>hare</strong> score. The timer starts when you enter your{" "}
+            <strong>first letter</strong>.
           </li>
           <li>
             After the timer runs out — or on any past day — keep playing for your{" "}
             <strong>tortoise</strong> total. It has no time limit and never expires.
+          </li>
+          <li>
+            <strong>Keys:</strong> <kbd>Space</kbd> shuffles the letters; <kbd>Insert</kbd>{" "}
+            pauses/resumes the timer.
           </li>
           <li>A new game arrives every day at midnight IST.</li>
           <li>Your words save automatically, so you can come back and keep going.</li>
