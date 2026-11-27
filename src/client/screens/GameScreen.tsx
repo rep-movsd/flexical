@@ -76,6 +76,11 @@ const EMPTY: State = {
   result: null,
 };
 
+/** "6 letters" or "8–10 letters": how to describe the seed lengths. */
+function seedLengthText(shortest: number, longest: number): string {
+  return shortest === longest ? `${shortest} letters` : `${shortest}–${longest} letters`;
+}
+
 /** Badge marks for one word, given what we know about the seeds. */
 function marksFor(
   word: string,
@@ -457,8 +462,8 @@ export class GameScreen extends Component<Props, State> {
               <div>
                 <h1 class="title">{isToday ? "Today's game" : game.date}</h1>
                 <p class="muted">
-                  {game.letters.length} letters · seeds are {game.shortestSeedLength}–
-                  {game.longestSeedLength} letters
+                  {game.letters.length} letters · seeds are{" "}
+                  {seedLengthText(game.shortestSeedLength, game.longestSeedLength)}
                 </p>
               </div>
               <Timer seconds={Math.floor(elapsed / 1000)} running={running && !paused} />
@@ -547,8 +552,8 @@ export class GameScreen extends Component<Props, State> {
           <div class="ready-card">
             <h2 class="ready-title">Get ready</h2>
             <p class="muted">
-              {game.letters.length} letters · seeds are {game.shortestSeedLength}–
-              {game.longestSeedLength} letters
+              {game.letters.length} letters · seeds are{" "}
+              {seedLengthText(game.shortestSeedLength, game.longestSeedLength)}
             </p>
             <div class="ready-count">{Math.max(1, Math.ceil(readyMs / 1000))}</div>
             <button type="button" class="btn btn--primary btn--block" onClick={this.startGame}>

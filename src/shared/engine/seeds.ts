@@ -3,12 +3,13 @@ import type { Dictionary } from "./dictionary";
 // ---------------------------------------------------------------------------
 // Seeds
 // ---------------------------------------------------------------------------
-// Each day's game is built from two distinct seed words of 8–10 letters. The
-// pair is chosen deterministically from the date string, so every player on a
-// given date gets the same game and it can be regenerated from the date alone.
+// Each day's game is built from two distinct seed words of a fixed length
+// (SEED_MIN_LENGTH..SEED_MAX_LENGTH — currently 6 letters). The pair is chosen
+// deterministically from the date string, so every player on a given date gets
+// the same game and it can be regenerated from the date alone.
 
-export const SEED_MIN_LENGTH = 8;
-export const SEED_MAX_LENGTH = 10;
+export const SEED_MIN_LENGTH = 6;
+export const SEED_MAX_LENGTH = 6;
 
 /** FNV-1a string hash → 32-bit seed. */
 function hashString(value: string): number {
@@ -33,7 +34,7 @@ function mulberry32(seed: number): () => number {
 
 const candidateCache = new WeakMap<Dictionary, string[]>();
 
-/** All 8–10 letter words in the dictionary, sorted (cached per Dictionary). */
+/** All candidate seed words (currently exactly 6 letters), sorted (cached per Dictionary). */
 export function seedCandidates(dict: Dictionary): string[] {
   const cached = candidateCache.get(dict);
   if (cached) return cached;
@@ -65,7 +66,7 @@ export function pickSeeds(
 ): [string, string] {
   const candidates = seedCandidates(dict);
   if (candidates.length < 2) {
-    throw new Error("Dictionary has too few 8–10 letter words for a game.");
+    throw new Error("Dictionary has too few seed words for a game.");
   }
 
   const rand = mulberry32(hashString(dateKey));

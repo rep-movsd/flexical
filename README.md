@@ -83,7 +83,7 @@ npm run build                # emits dist/client + dist/wordtwist
 ## How a game works
 
 - A **game** = one calendar date (in the viewer's local timezone), defined by a
-  hidden pair of 8–10 letter seed words.
+  hidden pair of 6-letter seed words.
 - **Allowed letters** = the distinct letters of both seeds. Letters may be reused
   any number of times.
 - A word scores if it is **≥ 4 letters**, uses **only allowed letters**, and is in

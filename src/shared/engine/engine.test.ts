@@ -138,12 +138,14 @@ describe("classifyWords", () => {
 
 describe("seeds", () => {
   const dict = createDictionary([
-    "mountain",
-    "trainers",
-    "elephant",
-    "computer",
-    "saturday",
-    "television",
+    "apples",
+    "banana",
+    "carbon",
+    "dinner",
+    "effort",
+    "fabric",
+    "garden",
+    "hidden",
   ]);
 
   it("picks two distinct candidates, deterministically", () => {
@@ -160,8 +162,8 @@ describe("seeds", () => {
     expect([next[0], next[1]].sort().join("|")).not.toBe([a, b].sort().join("|"));
   });
 
-  it("finds 8–10 letter candidates", () => {
-    expect(seedCandidates(dict).every((w) => w.length >= 8 && w.length <= 10)).toBe(true);
+  it("finds 6 letter candidates", () => {
+    expect(seedCandidates(dict).every((w) => w.length === 6)).toBe(true);
   });
 });
 
