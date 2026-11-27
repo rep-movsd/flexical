@@ -16,7 +16,7 @@
       "binding": "DB",
       "database_name": "flexical",
       // Replace after `wrangler d1 create flexical`.
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "database_id": "5c96d2cf-3282-4588-bfb1-99dc00fcba03",
       "migrations_dir": "./src/server/db/migrations"
     }
   ],
