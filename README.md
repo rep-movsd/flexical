@@ -133,15 +133,28 @@ All requests may send `X-TZ-Offset` (minutes) to select the viewer's local day.
 
 ## Deploy to Cloudflare (free tier)
 
-1. `npx wrangler login`
-2. `npx wrangler d1 create wordtwist`
-3. Copy the returned `database_id` into `wrangler.jsonc`
-4. `npm run db:migrate:remote`
-5. `npm run deploy`
+One command does everything:
 
-This gives `https://wordtwist.<your-subdomain>.workers.dev` (add a custom domain
-later — still free). One Worker serves both the SPA and the API, so there is no
-CORS to configure.
+```bash
+npm run deploy
+```
+
+`scripts/deploy.sh` is idempotent:
+
+- **First run:** authenticates (`wrangler login` opens a browser), creates the
+  `wordtwist` D1 database, writes its id into `wrangler.jsonc`, applies the
+  migrations, builds and deploys.
+- **Every later run (after code changes):** applies any new migrations, builds
+  and deploys again. Nothing to copy or configure by hand.
+- In CI, set `CLOUDFLARE_API_TOKEN` (and `CLOUDFLARE_ACCOUNT_ID`) to skip login.
+
+It prints the shareable link: `https://wordtwist.<your-subdomain>.workers.dev`
+(add a custom domain later — still free). One Worker serves both the SPA and the
+API, so there is no CORS to configure.
+
+Manual equivalent, if you prefer: `npx wrangler login`, `npx wrangler d1 create
+wordtwist`, put the id in `wrangler.jsonc`, `npm run db:migrate:remote`,
+`npm run deploy`.
 
 Free-tier fit: Workers requests (100k/day), Static Assets (unmetered), D1
 (5 GB, 5M reads/day, 100k writes/day). The Worker bundle is ~150 kB gzipped,
