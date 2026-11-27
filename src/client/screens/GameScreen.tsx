@@ -144,7 +144,17 @@ export class GameScreen extends Component<Props, State> {
   /** Type anywhere: letters build the word without focusing the input. */
   private onKeyDown = (event: KeyboardEvent): void => {
     const { locked, submitting, paused, ready } = this.state;
-    if (locked || submitting || !ready) return;
+    if (locked || submitting) return;
+
+    // Get-ready overlay: Enter starts the game.
+    if (!ready) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        this.startGame();
+      }
+      return;
+    }
+
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
     if (paused) {
@@ -178,6 +188,13 @@ export class GameScreen extends Component<Props, State> {
       return;
     }
 
+    // Escape clears the word, even when the input is focused.
+    if (event.key === "Escape") {
+      event.preventDefault();
+      this.setState({ draft: "", message: null, paused: false, pauseReason: null });
+      return;
+    }
+
     const el = document.activeElement as HTMLElement | null;
     const inField =
       !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
@@ -193,8 +210,6 @@ export class GameScreen extends Component<Props, State> {
     } else if (event.key === "Enter") {
       this.tryWord();
       event.preventDefault();
-    } else if (event.key === "Escape") {
-      this.setState({ draft: "", message: null, paused: false, pauseReason: null });
     }
   };
 
@@ -559,6 +574,7 @@ export class GameScreen extends Component<Props, State> {
             <button type="button" class="btn btn--primary btn--block" onClick={this.startGame}>
               Start
             </button>
+            <p class="muted ready-hint">or press Enter</p>
           </div>
         </div>
       )}

@@ -255,6 +255,11 @@ h3 {
   width: 100%;
 }
 
+.ready-hint {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
 /* ---------- Game layout ---------- */
 
 /* ---------- Game layout: three vertical panes (flex) ---------- */
