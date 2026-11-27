@@ -35,6 +35,10 @@ interface State {
   paused: boolean;
   /** Why we paused, so resuming can clear the input for un-fixable words. */
   pauseReason: PauseReason | null;
+  /** False until the "get ready" countdown finishes (clock stays stopped). */
+  ready: boolean;
+  /** Milliseconds left in the get-ready countdown. */
+  readyMs: number;
   elapsed: number;
   running: boolean;
   locked: boolean;
@@ -59,6 +63,8 @@ const EMPTY: State = {
   message: null,
   paused: false,
   pauseReason: null,
+  ready: true,
+  readyMs: 0,
   elapsed: 0,
   running: false,
   locked: false,
@@ -105,7 +111,15 @@ export class GameScreen extends Component<Props, State> {
   componentDidMount(): void {
     window.addEventListener("keydown", this.onKeyDown);
     this.timer = setInterval(() => {
-      const { running, paused } = this.state;
+      const { ready, running, paused } = this.state;
+      if (!ready) {
+        this.setState((prev) => {
+          const readyMs = Math.max(0, prev.readyMs - 200);
+          if (readyMs === 0) return { ready: true, readyMs: 0, running: true, paused: false };
+          return { readyMs };
+        });
+        return;
+      }
       if (!running || paused) return;
       this.setState((prev) => ({ elapsed: prev.elapsed + 200 }));
     }, 200);
@@ -124,8 +138,8 @@ export class GameScreen extends Component<Props, State> {
 
   /** Type anywhere: letters build the word without focusing the input. */
   private onKeyDown = (event: KeyboardEvent): void => {
-    const { locked, submitting, paused } = this.state;
-    if (locked || submitting) return;
+    const { locked, submitting, paused, ready } = this.state;
+    if (locked || submitting || !ready) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
     if (paused) {
@@ -208,6 +222,8 @@ export class GameScreen extends Component<Props, State> {
       this.t0 = Date.now();
       this.timestamps = new Map();
       const locked = me?.locked ?? false;
+      const played = me?.played ?? false;
+      const showReady = !locked && !played;
       this.setState({
         ...EMPTY,
         loading: false,
@@ -217,10 +233,12 @@ export class GameScreen extends Component<Props, State> {
         found,
         locked,
         revealed: me?.revealed ?? false,
-        played: me?.played ?? false,
+        played,
         bestScore: me?.bestScore ?? 0,
         badgeWords,
-        running: !locked,
+        ready: !showReady,
+        readyMs: showReady ? 5000 : 0,
+        running: !locked && !showReady,
       });
     } catch (error) {
       if (!this.alive) return;
@@ -232,7 +250,15 @@ export class GameScreen extends Component<Props, State> {
     }
   }
 
+  /** Begin play: close the ready overlay and start the clock. */
+  private startGame = (): void => {
+    this.t0 = Date.now();
+    this.timestamps = new Map();
+    this.setState({ ready: true, readyMs: 0, running: true, paused: false, elapsed: 0 });
+  };
+
   private pick = (letter: string): void => {
+    if (!this.state.ready) return;
     const el = document.activeElement as HTMLElement | null;
     if (el && el.tagName === "BUTTON") el.blur();
     this.setState((prev) => {
@@ -389,6 +415,8 @@ export class GameScreen extends Component<Props, State> {
       submitting,
       result,
       bestScore,
+      ready,
+      readyMs,
     } = this.state;
 
     if (loading) {
@@ -417,7 +445,8 @@ export class GameScreen extends Component<Props, State> {
     };
 
     return (
-      <div class="board-frame">
+      <>
+      <div class={ready ? "board-frame" : "board-frame board-frame--blurred"}>
         <div class="pane pane--left" aria-hidden="true" />
 
         <div class="pane pane--mid">
@@ -454,7 +483,7 @@ export class GameScreen extends Component<Props, State> {
                 }))
               }
               onSubmit={this.tryWord}
-              disabled={locked}
+              disabled={locked || !ready}
             />
 
             <div class="flash-slot">
@@ -510,6 +539,23 @@ export class GameScreen extends Component<Props, State> {
           <RacePanel ghosts={ghosts} elapsed={elapsed} selfScore={score} selfBadges={selfBadges} />
         </div>
       </div>
+
+      {!ready && (
+        <div class="ready-overlay">
+          <div class="ready-card">
+            <h2 class="ready-title">Get ready</h2>
+            <p class="muted">
+              {game.letters.length} letters · seeds are {game.shortestSeedLength}–
+              {game.longestSeedLength} letters
+            </p>
+            <div class="ready-count">{Math.max(1, Math.ceil(readyMs / 1000))}</div>
+            <button type="button" class="btn btn--primary btn--block" onClick={this.startGame}>
+              Start
+            </button>
+          </div>
+        </div>
+      )}
+      </>
     );
   }
 }
