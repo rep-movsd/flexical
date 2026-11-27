@@ -1,11 +1,12 @@
 import type {
   AllTimeRow,
+  AllTimeSort,
   ApiError,
-  ArchiveGame,
+  GameLeaderboardResponse,
   GameResponse,
-  LeaderboardResponse,
+  OpponentResponse,
+  PeekResult,
   PublicUser,
-  RevealResult,
   SaveResult,
 } from "../shared/types";
 import { tzOffset } from "./time";
@@ -86,33 +87,44 @@ export class Api {
     return this.request<GameResponse>("GET", `/api/games/${encodeURIComponent(id)}`);
   }
 
-  async listGames(): Promise<ArchiveGame[]> {
-    const { games } = await this.request<{ games: ArchiveGame[] }>("GET", "/api/games");
-    return games;
-  }
-
   saveWords(id: string, words: string[]): Promise<SaveResult> {
     return this.request<SaveResult>("POST", `/api/games/${encodeURIComponent(id)}/words`, {
       words,
     });
   }
 
-  getGameLeaderboard(id: string): Promise<LeaderboardResponse> {
-    return this.request<LeaderboardResponse>(
+  getGameLeaderboard(id: string): Promise<GameLeaderboardResponse> {
+    return this.request<GameLeaderboardResponse>(
       "GET",
       `/api/games/${encodeURIComponent(id)}/leaderboard`,
     );
   }
 
-  reveal(id: string, username: string): Promise<RevealResult> {
-    return this.request<RevealResult>(
+  /** Peek at another player's words for a game. */
+  peek(id: string, username: string): Promise<PeekResult> {
+    return this.request<PeekResult>(
       "POST",
-      `/api/games/${encodeURIComponent(id)}/reveal/${encodeURIComponent(username)}`,
+      `/api/games/${encodeURIComponent(id)}/peek/${encodeURIComponent(username)}`,
     );
   }
 
-  async getAllTime(): Promise<AllTimeRow[]> {
-    const { rows } = await this.request<{ rows: AllTimeRow[] }>("GET", "/api/leaderboard/alltime");
+  async getAllTime(sort: AllTimeSort = "points"): Promise<AllTimeRow[]> {
+    const { rows } = await this.request<{ rows: AllTimeRow[] }>(
+      "GET",
+      `/api/leaderboard/alltime?sort=${sort}`,
+    );
     return rows;
+  }
+
+  async listUsernames(): Promise<string[]> {
+    const { usernames } = await this.request<{ usernames: string[] }>("GET", "/api/users");
+    return usernames;
+  }
+
+  getOpponentScores(username: string): Promise<OpponentResponse> {
+    return this.request<OpponentResponse>(
+      "GET",
+      `/api/users/${encodeURIComponent(username)}/scores`,
+    );
   }
 }

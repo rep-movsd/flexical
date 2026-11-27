@@ -2,6 +2,7 @@
    Mobile-first; the desktop board is a single centered column at 75% width that
    goes full width on smaller screens. */
 :root {
+  color-scheme: dark;
   --bg: #12121c;
   --bg-elev: #1b1b2f;
   --bg-elev-2: #24243c;
@@ -804,4 +805,155 @@ h3 {
     padding: 8px;
     font-size: 0.85rem;
   }
+}
+
+/* ---------- Modal ---------- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(18, 18, 28, 0.6);
+  backdrop-filter: blur(2px);
+}
+
+.modal {
+  width: min(560px, 94vw);
+  max-height: 85vh;
+  overflow: auto;
+  padding: 20px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.modal__title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.modal__body {
+  display: grid;
+  gap: 12px;
+}
+
+.modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.peek-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---------- Archive ---------- */
+
+.archive__bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+
+.archive__date {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.archive__play {
+  margin-left: auto;
+}
+
+.datepicker {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  color-scheme: dark;
+}
+
+/* A player's own row on a board, shown below the top 10. */
+.board__me {
+  background: rgba(124, 92, 255, 0.12);
+}
+
+.board__me td {
+  border-top: 2px solid var(--accent);
+}
+
+.board__badge {
+  text-align: center;
+  width: 44px;
+}
+
+.badge-cell {
+  display: inline-flex;
+}
+
+.badge-cell--off {
+  opacity: 0.22;
+  filter: grayscale(1);
+}
+
+/* Sortable column headers. */
+.sortbtn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sortbtn--active {
+  color: var(--fg);
+}
+
+/* ---------- Opponents ---------- */
+
+.opponent__form {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.opponent__form .field__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.opponent__summary {
+  margin: 8px 0;
+  font-size: 1.05rem;
+}
+
+.opponent__list {
+  max-height: 60vh;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.opponent__list .board th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-elev);
 }

@@ -69,7 +69,7 @@ src/
     components/             Shell, Letters, WordEntry, FoundWords,
                             BadgeIcons, icons
     screens/                GameScreen, ArchiveScreen, LeaderboardScreen,
-                            AllTimeScreen, AuthScreen, ProfileScreen, NotFound
+                            OpponentsScreen, AuthScreen, ProfileScreen, NotFound
     styles.css              responsive styles
   server/                   Cloudflare Worker (Hono)
     index.ts                app wiring + middleware
@@ -151,16 +151,22 @@ local day.
 |---|---|---|
 | GET | `/api/health` | liveness |
 | GET | `/api/games/today` | `{ game, me }` |
-| GET | `/api/games` | archive list |
 | GET | `/api/games/:id` | `{ game, me }` |
 | POST | `/api/games/:id/words` | `{ words }` → validate + badge marks; auto-saves when signed in |
-| GET | `/api/games/:id/leaderboard` | points + badges |
-| POST | `/api/games/:id/reveal/:username` | their words + records your lock (auth) |
-| GET | `/api/leaderboard/alltime` | marathon totals |
+| GET | `/api/games/:id/leaderboard` | `{ game, top (10), me }` — `me` is your row if outside the top |
+| POST | `/api/games/:id/peek/:username` | that player's words (locks the game only when `REVEAL_LOCKS`) |
+| GET | `/api/leaderboard/alltime?sort=` | totals: `points` (default), `games`, or `avg` |
+| GET | `/api/users` | usernames (opponents autocomplete) |
+| GET | `/api/users/:username/scores` | every daily score for a player |
 
 `me` on the game endpoints is `{ played, revealed, locked, score, bestScore,
 words, badges, badgeWords }` or `null` for anonymous visitors. `words` keeps the
-order they were found.
+order they were found. Game dates are restricted to `2026-01-01` → today
+(`MIN_GAME_DATE`); anything else is `400`.
+
+**Peek locking is currently disabled** (`REVEAL_LOCKS = false` in
+`src/server/config.ts`): peeking returns the words but records no lock. Enable it
+(starting from a fresh database) before going public.
 
 ## Data model (`src/server/db/migrations/`)
 

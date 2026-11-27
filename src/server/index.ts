@@ -9,6 +9,7 @@ import { loadUser, requireUser } from "./auth/middleware";
 import { authRoutes } from "./routes/auth";
 import { gameRoutes } from "./routes/games";
 import { leaderboardRoutes } from "./routes/leaderboard";
+import { userRoutes } from "./routes/users";
 
 const app = new Hono<AppEnv>();
 
@@ -21,6 +22,7 @@ app.get("/api/health", (c) => c.json({ ok: true }));
 app.route("/api/auth", authRoutes);
 app.route("/api/games", gameRoutes);
 app.route("/api/leaderboard", leaderboardRoutes);
+app.route("/api/users", userRoutes);
 
 // Example of a protected route — useful as a template for future endpoints.
 app.get("/api/profile", requireUser, (c) => c.json({ user: c.get("user") }));

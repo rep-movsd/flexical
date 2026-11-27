@@ -7,7 +7,7 @@ import { Shell } from "./components/Shell";
 import { GameScreen } from "./screens/GameScreen";
 import { ArchiveScreen } from "./screens/ArchiveScreen";
 import { LeaderboardScreen } from "./screens/LeaderboardScreen";
-import { AllTimeScreen } from "./screens/AllTimeScreen";
+import { OpponentsScreen } from "./screens/OpponentsScreen";
 import { AuthScreen } from "./screens/AuthScreen";
 import { ProfileScreen } from "./screens/ProfileScreen";
 import { NotFound } from "./screens/NotFound";
@@ -48,8 +48,9 @@ export class App extends Component {
             <Route path="/" component={GameScreen} />
             <Route path="/play/:date" component={GameScreen} />
             <Route path="/archive" component={ArchiveScreen} />
-            <Route path="/board/:date" component={LeaderboardScreen} />
-            <Route path="/alltime" component={AllTimeScreen} />
+            <Route path="/archive/:date" component={ArchiveScreen} />
+            <Route path="/leaderboard" component={LeaderboardScreen} />
+            <Route path="/opponents" component={OpponentsScreen} />
             <Route path="/signin" component={AuthScreen} />
             <Route path="/profile" component={ProfileScreen} />
             <Route default component={NotFound} />

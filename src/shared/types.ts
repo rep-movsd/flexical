@@ -58,15 +58,6 @@ export interface SaveResult {
   persisted: boolean;
 }
 
-export interface ArchiveGame {
-  id: string;
-  date: string;
-  isToday: boolean;
-  bestScore: number;
-  revealed: boolean;
-  locked: boolean;
-}
-
 export interface LeaderboardRow {
   rank: number;
   username: string;
@@ -75,37 +66,46 @@ export interface LeaderboardRow {
   badges: Badges;
 }
 
-export interface LeaderboardResponse {
+/** A game board: the top rows plus the viewer's own row if outside the top. */
+export interface GameLeaderboardResponse {
   game: GameView;
-  rows: LeaderboardRow[];
+  top: LeaderboardRow[];
+  me: LeaderboardRow | null;
 }
 
+/** A row on the all-time leaderboard. */
 export interface AllTimeRow {
   rank: number;
   username: string;
   total: number;
   games: number;
-  words: number;
+  avg: number;
 }
 
-export interface RevealResult {
+export type AllTimeSort = "points" | "games" | "avg";
+
+/** One daily score in a player's history. */
+export interface OpponentScoreRow {
+  date: string;
+  score: number;
+  wordsFound: number;
+  badges: Badges;
+}
+
+export interface OpponentResponse {
+  username: string;
+  total: number;
+  games: number;
+  rows: OpponentScoreRow[];
+}
+
+/** The words revealed when peeking at another player's run. */
+export interface PeekResult {
   username: string;
   score: number;
   badges: Badges;
   words: string[];
   locked: boolean;
-}
-
-/** Result of checking a single word live (no persistence). */
-export interface CheckedWord {
-  word: string;
-  valid: boolean;
-  reason: string | null;
-  marks: BadgeKind[];
-}
-
-export interface CheckResponse {
-  results: CheckedWord[];
 }
 
 export interface ApiError {

@@ -160,7 +160,20 @@ export interface AllTimeDbRow {
   words: number;
 }
 
-export async function allTime(db: D1Database, limit: number): Promise<AllTimeDbRow[]> {
+export type AllTimeSort = "points" | "games" | "avg";
+
+const ALL_TIME_ORDER: Record<AllTimeSort, string> = {
+  points: "total DESC",
+  games: "games DESC, total DESC",
+  avg: "(CAST(SUM(p.score) AS REAL) / COUNT(*)) DESC, total DESC",
+};
+
+export async function allTime(
+  db: D1Database,
+  limit: number,
+  sort: AllTimeSort = "points",
+): Promise<AllTimeDbRow[]> {
+  const order = ALL_TIME_ORDER[sort] ?? ALL_TIME_ORDER.points;
   const { results } = await db
     .prepare(
       `SELECT u.username AS username,
@@ -169,7 +182,7 @@ export async function allTime(db: D1Database, limit: number): Promise<AllTimeDbR
               SUM(p.words_found) AS words
        FROM plays p JOIN users u ON u.id = p.user_id
        GROUP BY p.user_id
-       ORDER BY total DESC, u.username ASC
+       ORDER BY ${order}, u.username ASC
        LIMIT ?`,
     )
     .bind(limit)
@@ -177,33 +190,85 @@ export async function allTime(db: D1Database, limit: number): Promise<AllTimeDbR
   return results;
 }
 
-export interface GameListItem {
-  id: string;
-  date: string;
-  best_score: number | null;
-  revealed: string | null;
+/** A single player's row on a game board, with their rank. */
+export interface RankedPlay {
+  rank: number;
+  username: string;
+  score: number;
+  words_found: number;
+  words_json: string;
 }
 
-export async function listGames(
+/** The player's row + rank for a game, or null if they have no run for it. */
+export async function playerRank(
   db: D1Database,
-  maxDate: string,
-  userId: string | null,
-  limit = 200,
-): Promise<GameListItem[]> {
+  gameId: string,
+  userId: string,
+): Promise<RankedPlay | null> {
+  const play = await db
+    .prepare(
+      `SELECT u.username AS username, p.score AS score, p.words_found AS words_found,
+              p.words_json AS words_json, p.finished_at AS finished_at
+       FROM plays p JOIN users u ON u.id = p.user_id
+       WHERE p.game_id = ? AND p.user_id = ?`,
+    )
+    .bind(gameId, userId)
+    .first<Omit<RankedPlay, "rank"> & { finished_at: number }>();
+  if (!play) return null;
+
   const { results } = await db
     .prepare(
-      `SELECT g.id AS id, g.date AS date,
-              p.score AS best_score, r.user_id AS revealed
-       FROM games g
-       LEFT JOIN plays p ON p.game_id = g.id AND p.user_id = ?
-       LEFT JOIN reveals r ON r.game_id = g.id AND r.user_id = ?
-       WHERE g.date <= ?
-       ORDER BY g.date DESC
+      `SELECT COUNT(*) AS n FROM plays
+       WHERE game_id = ? AND (score > ? OR (score = ? AND finished_at < ?))`,
+    )
+    .bind(gameId, play.score, play.score, play.finished_at)
+    .all<{ n: number }>();
+
+  return {
+    rank: (results[0]?.n ?? 0) + 1,
+    username: play.username,
+    score: play.score,
+    words_found: play.words_found,
+    words_json: play.words_json,
+  };
+}
+
+/** Every daily score a player has recorded, newest first, with game seeds. */
+export interface DailyScoreRow {
+  date: string;
+  score: number;
+  words_found: number;
+  words_json: string;
+  seed_a: string;
+  seed_b: string;
+}
+
+export async function userDailyScores(
+  db: D1Database,
+  userId: string,
+  limit = 400,
+): Promise<DailyScoreRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT p.game_id AS date, p.score AS score, p.words_found AS words_found,
+              p.words_json AS words_json, g.seed_a AS seed_a, g.seed_b AS seed_b
+       FROM plays p JOIN games g ON g.id = p.game_id
+       WHERE p.user_id = ?
+       ORDER BY p.game_id DESC
        LIMIT ?`,
     )
-    .bind(userId ?? "", userId ?? "", maxDate, limit)
-    .all<GameListItem>();
+    .bind(userId, limit)
+    .all<DailyScoreRow>();
   return results;
+}
+
+/** Usernames for the opponents autocomplete. */
+export async function listUsernames(db: D1Database, limit = 500): Promise<string[]> {
+  const { results } = await db
+    .prepare("SELECT username FROM users ORDER BY username_lower ASC LIMIT ?")
+    .bind(limit)
+    .all<{ username: string }>();
+  return results.map((row) => row.username);
 }
 
 export async function hasRevealed(

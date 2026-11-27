@@ -143,21 +143,28 @@ found words and on leaderboard rows.
 
 ## Leaderboards
 
-- **Per-game leaderboard:** every game (today's and each past day) has its own
-  leaderboard, ranked by score, showing **points only** plus badge icons.
-- **All-time board:** ranks players by the **sum of their score on every game
-  they have played** ("marathon" total).
+- **Per-game board (Archive):** pick a date (from 2026-01-01 to today) and see that
+  game's **top 10**, plus your own row if you're outside the top 10. Each row shows
+  the player, their points, the ☀/🌙 badges, and a **peek** button.
+- **All-time board (Leaderboard):** ranks players by their **total points** across
+  every game they've played, and also shows **games played** and **average points
+  per game**; the table is sortable by any of the three.
+- **Opponents:** look up a player to see every daily score they've recorded.
 
 ## Reveal mechanic (spoilers)
 
-- A leaderboard row shows **only the player's points and badges** by default.
-- **Expanding a row reveals that player's words.**
+- A board row shows **only the player's points and badges** by default.
+- **Peeking reveals that player's words** — after a confirmation modal.
 - Doing so **permanently locks that game for you**: you can no longer add words
   to it, now or on any future visit. The lock applies to the current day's game
   and to every past game alike.
 - This means a player must choose: play blind and keep competing, or peek and
   forfeit that board. Badges are shown *without* expanding, so you can read the
   leaderboard for achievement signals without spoiling the words.
+
+> **Testing note.** The lock is currently **disabled** (`REVEAL_LOCKS = false` in
+> `src/server/config.ts`): peeking shows the words but records no lock. It will be
+> enabled — starting from a fresh database — before the game goes public.
 
 ## Accounts
 

@@ -54,8 +54,14 @@ that game for you.
    stored run, rescores, and returns badge marks. For anonymous players it still
    validates/returns marks but stores nothing. A game stays open; the only lock
    is `403` if you revealed.
-4. **Reveal** — `POST /api/games/:id/reveal/:username` returns that player's
-   words and records a `reveals` row for the requester, locking the game.
+4. **Peek** — `POST /api/games/:id/peek/:username` returns that player's words.
+   While `REVEAL_LOCKS` is off (current default) it records no lock; when on, it
+   writes a `reveals` row and locks the game for the requester.
+
+Boards: **Archive** (`/archive/:date`) shows a date's top 10 (+ your row) with a
+peek modal; **Leaderboard** (`/leaderboard`) is the all-time totals board
+(sortable by points/games/avg); **Opponents** (`/opponents`) looks up one
+player's daily scores.
 
 ## Key invariants & gotchas
 
@@ -81,6 +87,11 @@ that game for you.
   find order (the reader tolerates the old `[{word,t}]` shape). No timestamps.
 - **Saves are debounced** (≈1s) and flushed on page hide. Writes are the scaling
   pressure point — see the README/PR notes; batch, don't write per keystroke.
+- **Peek locking is off during testing.** `REVEAL_LOCKS` in `src/server/config.ts`
+  is `false`, so peeking returns words without recording a lock. Flip it (with a
+  fresh DB) before launch.
+- **Games are bounded by date.** Any date has a game (the seed is a hash of the
+  date), but requests are restricted to `MIN_GAME_DATE` (`2026-01-01`) → today.
 - **Answer counts are precomputed** at game creation into
   `games.answer_counts_json`; backfilled lazily for older games. They power the
   `found / total` display.

@@ -2,6 +2,7 @@ import { Component } from "preact";
 import { AppContext, type AppContextValue } from "../context";
 import { loadDictionary } from "../dictionary";
 import { localDateString } from "../time";
+import { click, beep } from "../sound";
 import { MIN_WORD_LENGTH, pointsForLength } from "../../shared/engine/scoring";
 import { isBuildable, toLetterSet } from "../../shared/engine/letters";
 import type { BadgeKind, BadgeWords, GameView } from "../../shared/types";
@@ -110,15 +111,29 @@ export class GameScreen extends Component<Props, State> {
 
     if (/^[a-zA-Z]$/.test(event.key)) {
       event.preventDefault();
-      this.setState((prev) => ({ draft: prev.draft + event.key.toUpperCase() }));
+      const letter = event.key.toUpperCase();
+      // Only allowed letters can be typed.
+      if (!this.allowed().has(letter)) {
+        beep();
+        return;
+      }
+      click(this.state.draft.length);
+      this.setState((prev) => ({ draft: prev.draft + letter, message: null }));
     } else if (event.key === "Backspace") {
       event.preventDefault();
-      this.setState((prev) => ({ draft: prev.draft.slice(0, -1) }));
+      const next = this.state.draft.slice(0, -1);
+      if (this.state.draft) click(next.length - 1);
+      this.setState({ draft: next, message: null });
     } else if (event.key === "Enter") {
       event.preventDefault();
       this.tryWord();
     }
   };
+
+  /** The set of letters this game permits (uppercase). */
+  private allowed(): Set<string> {
+    return new Set(this.state.game?.letters ?? []);
+  }
 
   private async load(date?: string): Promise<void> {
     this.alive = true;
@@ -162,8 +177,13 @@ export class GameScreen extends Component<Props, State> {
 
   private pick = (letter: string): void => {
     if (this.state.locked) return;
+    if (!this.allowed().has(letter)) {
+      beep();
+      return;
+    }
     const el = document.activeElement as HTMLElement | null;
     if (el && el.tagName === "BUTTON") el.blur();
+    click(this.state.draft.length);
     this.setState((prev) => ({ draft: prev.draft + letter, message: null }));
   };
 
@@ -173,20 +193,24 @@ export class GameScreen extends Component<Props, State> {
     const word = draft.trim().toLowerCase();
     if (!word) return;
 
-    const fail = (text: string): void => this.setState({ message: { text, kind: "err" } });
+    const shown = word.toUpperCase();
+    const fail = (text: string): void => {
+      beep();
+      this.setState({ message: { text, kind: "err" }, draft: "" });
+    };
 
-    if (word.length < MIN_WORD_LENGTH) return fail(`Too short — ${MIN_WORD_LENGTH}+ letters.`);
-    if (found.some((entry) => entry.word === word)) return fail("Already found that one.");
+    if (word.length < MIN_WORD_LENGTH) return fail(`${shown} is too short`);
+    if (found.some((entry) => entry.word === word)) return fail(`${shown} has already been found`);
     if (!isBuildable(word, toLetterSet(game.letters))) {
-      return fail("Uses letters that aren't allowed.");
+      return fail(`${shown} uses letters that aren't allowed`);
     }
-    if (!dict.has(word)) return fail("Not in the dictionary.");
+    if (!dict.has(word)) return fail(`${shown} is not in the dictionary`);
 
     const points = pointsForLength(word.length, game.k);
     this.setState((prev) => ({
       found: [...prev.found, { word, points, marks: [] }],
       draft: "",
-      message: { text: `${word.toUpperCase()}  +${points}`, kind: "ok" },
+      message: { text: `${shown}  +${points}`, kind: "ok" },
     }));
     this.scheduleSave();
   };
@@ -262,14 +286,23 @@ export class GameScreen extends Component<Props, State> {
             {locked && (
               <p class="notice">
                 You revealed this game, so it's locked.
-                <a href={`/board/${game.id}`}> See the board</a>
+                <a href={`/archive/${game.id}`}> See the board</a>
               </p>
             )}
 
             <Letters letters={game.letters} onPick={this.pick} disabled={locked} />
             <WordEntry
               value={draft}
-              onInput={(value) => this.setState({ draft: value, message: null })}
+              onInput={(value) => {
+                const allowed = this.allowed();
+                const filtered = value
+                  .split("")
+                  .filter((ch) => allowed.has(ch))
+                  .join("");
+                if (filtered.length < value.length) beep();
+                else if (filtered.length) click(filtered.length - 1);
+                this.setState({ draft: filtered, message: null });
+              }}
               onSubmit={this.tryWord}
               disabled={locked}
             />

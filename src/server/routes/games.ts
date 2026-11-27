@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import type { AppEnv } from "../env";
-import { requireUser } from "../auth/middleware";
 import { getDictionary } from "../dictionary";
-import { ensureCounts, ensureGame } from "../games";
+import { ensureGame } from "../games";
 import { localDate, parseOffset } from "../time";
+import { MIN_GAME_DATE, REVEAL_LOCKS } from "../config";
 import {
   classifyWords,
   computeBadgeWords,
@@ -21,12 +21,17 @@ import {
   getUserByUsername,
   hasRevealed,
   insertReveal,
-  listGames,
+  playerRank,
   upsertPlay,
   wordsOf,
 } from "../db/repo";
 
 export const gameRoutes = new Hono<AppEnv>();
+
+/** A date is playable if it is a real YYYY-MM-DD within [MIN_GAME_DATE, today]. */
+function playableDate(id: string, today: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(id) && id >= MIN_GAME_DATE && id <= today;
+}
 
 function gameView(game: GameRow) {
   return {
@@ -85,26 +90,6 @@ gameRoutes.get("/today", async (c) => {
   return c.json({ game: gameView(game), me: await meView(db, game, c.get("user")) });
 });
 
-gameRoutes.get("/", async (c) => {
-  const db = c.env.DB;
-  const today = localDate(parseOffset(c.req.header("X-TZ-Offset")));
-  const user = c.get("user");
-  const rows = await listGames(db, today, user?.id ?? null);
-
-  const games = rows.map((row) => {
-    const revealed = row.revealed !== null;
-    return {
-      id: row.id,
-      date: row.date,
-      isToday: row.id === today,
-      bestScore: row.best_score ?? 0,
-      revealed,
-      locked: revealed,
-    };
-  });
-  return c.json({ games });
-});
-
 /**
  * Auto-save the player's word set. Words only ever accumulate, so the stored run
  * is the union of what we already had and the (validated) incoming words.
@@ -119,6 +104,7 @@ gameRoutes.post("/:id/words", async (c) => {
   const game = await getGame(db, id);
   if (!game) return c.json({ error: "not_found" }, 404);
   if (id > today) return c.json({ error: "future_game", message: "That game isn't available yet." }, 403);
+  if (id < MIN_GAME_DATE) return c.json({ error: "invalid_date", message: "That game date is out of range." }, 400);
   if (user && (await hasRevealed(db, user.id, id))) {
     return c.json({ error: "revealed", message: "You revealed this game, so it's locked." }, 403);
   }
@@ -172,26 +158,46 @@ gameRoutes.post("/:id/words", async (c) => {
 });
 
 gameRoutes.get("/:id/leaderboard", async (c) => {
-  const game = await getGame(c.env.DB, c.req.param("id"));
-  if (!game) return c.json({ error: "not_found" }, 404);
+  const db = c.env.DB;
+  const id = c.req.param("id");
+  const today = localDate(parseOffset(c.req.header("X-TZ-Offset")));
+  if (!playableDate(id, today)) return c.json({ error: "invalid_date" }, 400);
 
-  const rows = await gameLeaderboard(c.env.DB, game.id, 100);
-  const board = rows.map((row, index) => {
-    const words = wordsOf(row);
-    return {
-      rank: index + 1,
-      username: row.username,
-      score: row.score,
-      wordsFound: row.words_found,
-      badges: computeBadges(words, game.seed_a, game.seed_b) as Badges,
-    };
-  });
-  return c.json({ game: gameView(game), rows: board });
+  const game = await ensureGame(db, id);
+  const rows = await gameLeaderboard(db, game.id, 10);
+  const top = rows.map((row, index) => ({
+    rank: index + 1,
+    username: row.username,
+    score: row.score,
+    wordsFound: row.words_found,
+    badges: computeBadges(wordsOf(row), game.seed_a, game.seed_b) as Badges,
+  }));
+
+  // The current player, if they have a run that isn't already in the top 10.
+  const user = c.get("user");
+  let me = null;
+  if (user) {
+    const ranked = await playerRank(db, game.id, user.id);
+    if (ranked && ranked.rank > top.length) {
+      me = {
+        rank: ranked.rank,
+        username: ranked.username,
+        score: ranked.score,
+        wordsFound: ranked.words_found,
+        badges: computeBadges(wordsOf(ranked), game.seed_a, game.seed_b) as Badges,
+      };
+    }
+  }
+
+  return c.json({ game: gameView(game), top, me });
 });
 
-gameRoutes.post("/:id/reveal/:username", requireUser, async (c) => {
+/**
+ * Peek at another player's words for a game. While REVEAL_LOCKS is disabled this
+ * is harmless; when enabled it records a permanent lock for the requester.
+ */
+gameRoutes.post("/:id/peek/:username", async (c) => {
   const db = c.env.DB;
-  const requester = c.get("user")!;
   const game = await getGame(db, c.req.param("id"));
   if (!game) return c.json({ error: "not_found" }, 404);
 
@@ -201,8 +207,10 @@ gameRoutes.post("/:id/reveal/:username", requireUser, async (c) => {
   const play = await getPlay(db, target.id, game.id);
   if (!play) return c.json({ error: "no_run" }, 404);
 
-  const isSelf = target.id === requester.id;
-  if (!isSelf) await insertReveal(db, requester.id, game.id);
+  const requester = c.get("user");
+  const isSelf = requester?.id === target.id;
+  const locked = REVEAL_LOCKS && !isSelf;
+  if (locked && requester) await insertReveal(db, requester.id, game.id);
 
   const words = wordsOf(play);
   return c.json({
@@ -210,14 +218,15 @@ gameRoutes.post("/:id/reveal/:username", requireUser, async (c) => {
     score: play.score,
     badges: computeBadges(words, game.seed_a, game.seed_b),
     words,
-    locked: !isSelf,
+    locked,
   });
 });
 
 gameRoutes.get("/:id", async (c) => {
   const db = c.env.DB;
-  const found = await getGame(db, c.req.param("id"));
-  if (!found) return c.json({ error: "not_found" }, 404);
-  const game = await ensureCounts(db, found);
+  const id = c.req.param("id");
+  const today = localDate(parseOffset(c.req.header("X-TZ-Offset")));
+  if (!playableDate(id, today)) return c.json({ error: "invalid_date" }, 400);
+  const game = await ensureGame(db, id);
   return c.json({ game: gameView(game), me: await meView(db, game, c.get("user")) });
 });
