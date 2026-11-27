@@ -1,4 +1,4 @@
--- Wordtwist schema. Idempotent so it can be re-run safely.
+-- Flexical schema. Idempotent so it can be re-run safely.
 -- Apply locally:  npm run db:migrate:local
 -- Apply remotely: npm run db:migrate:remote
 

@@ -1,3 +1,5 @@
+// Presentational mm:ss clock for the current attempt. Mutually-muted styling
+// when the timer is paused (e.g. after a rejected word).
 import { Component } from "preact";
 
 function format(seconds: number): string {

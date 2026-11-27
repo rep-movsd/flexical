@@ -46,7 +46,7 @@ export class App extends Component {
 
   render() {
     if (!this.store.booted) {
-      return <div class="splash">Wordtwist</div>;
+      return <div class="splash">Flexical</div>;
     }
 
     return (

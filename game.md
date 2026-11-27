@@ -1,4 +1,4 @@
-# Wordtwist — Game Design
+# Flexical — Game Design
 
 > Status: design spec. This describes the complete game dynamics. Implementation
 > details live in the code and README; this document is the source of truth for
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Wordtwist is a daily word-finding game. Each day is built from a **pair of long
+Flexical is a daily word-finding game. Each day is built from a **pair of long
 seed words**. From the letters those words contain, players find as many valid
 words as they can. You are not racing a pool of tiles — you are given a set of
 **allowed letters** and may reuse them freely.

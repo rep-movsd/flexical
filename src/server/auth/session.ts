@@ -3,7 +3,7 @@ import type { PublicUser } from "../../shared/types";
 // Opaque, revocable sessions stored in D1. The cookie carries only the session
 // id; nothing sensitive is encoded client-side.
 
-export const SESSION_COOKIE = "wt_session";
+export const SESSION_COOKIE = "fx_session";
 /** How long a session stays valid. */
 export const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days
 

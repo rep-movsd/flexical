@@ -1,5 +1,5 @@
 {
-  "name": "wordtwist",
+  "name": "flexical",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,9 +12,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "cf-typegen": "wrangler types",
-    "db:migrate:local": "wrangler d1 migrations apply wordtwist --local",
-    "db:migrate:remote": "wrangler d1 migrations apply wordtwist --remote",
-    "db:reset:local": "rm -rf .wrangler/state/v3/d1 && wrangler d1 migrations apply wordtwist --local"
+    "db:migrate:local": "wrangler d1 migrations apply flexical --local",
+    "db:migrate:remote": "wrangler d1 migrations apply flexical --remote",
+    "db:reset:local": "rm -rf .wrangler/state/v3/d1 && wrangler d1 migrations apply flexical --local"
   },
   "dependencies": {
     "hono": "^4.13.22",

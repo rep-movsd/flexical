@@ -1,3 +1,6 @@
+/* Flexical — single hand-written stylesheet.
+   Mobile-first; the desktop layout kicks in at >=1024px. The game board is a
+   three-pane flex row (flex-grow 20 / 60 / 20) that stacks on small screens. */
 :root {
   --bg: #12121c;
   --bg-elev: #1b1b2f;

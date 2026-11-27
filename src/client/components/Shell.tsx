@@ -51,7 +51,7 @@ class DesktopNav extends Component<{ path: string; username: string | null }> {
     return (
       <header class="topbar">
         <a href="/" class="brand">
-          Wordtwist
+          Flexical
         </a>
         <nav class="topbar__links">
           {ITEMS.map((item) => (

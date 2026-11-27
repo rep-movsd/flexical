@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# One-command deploy for Wordtwist.
+# One-command deploy for Flexical.
 #
 #   First run:  authenticates, creates the D1 database, wires its id into
 #               wrangler.jsonc, applies migrations, builds and deploys.
@@ -15,7 +15,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DB_NAME="wordtwist"
+DB_NAME="flexical"
 CONFIG="wrangler.jsonc"
 PLACEHOLDER="REPLACE_WITH_YOUR_D1_DATABASE_ID"
 UUID_RE='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}'

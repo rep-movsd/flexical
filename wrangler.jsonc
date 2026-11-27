@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "wordtwist",
+  "name": "flexical",
   "main": "./src/server/index.ts",
   // Set to today's date (must be <= the date supported by your local workerd).
   "compatibility_date": "2026-11-24",
@@ -14,8 +14,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "wordtwist",
-      // Replace after `wrangler d1 create wordtwist`.
+      "database_name": "flexical",
+      // Replace after `wrangler d1 create flexical`.
       "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
       "migrations_dir": "./src/server/db/migrations"
     }

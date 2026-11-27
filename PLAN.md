@@ -1,4 +1,4 @@
-# Wordtwist — Implementation Plan
+# Flexical — Implementation Plan
 
 Companion to `game.md` (the behavioural spec). This file describes how the app
 is built. See `game.md` for the rules themselves.

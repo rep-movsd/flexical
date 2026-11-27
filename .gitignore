@@ -8,3 +8,6 @@ dist/
 # Raw dictionary sources — words.txt is the only one we ship.
 12dicts-6.0.2/
 12dicts-6.0.2.zip
+
+# IDE
+.idea/

@@ -1,3 +1,7 @@
+// Worker entry point. Wires middleware and routes. `loadUser` runs for every
+// /api/* request and populates `c.var.user`; `requireUser` guards endpoints that
+// need an account. In production this same Worker also serves the built SPA and
+// public/ assets (see wrangler.jsonc `assets`).
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import type { AppEnv } from "./env";
