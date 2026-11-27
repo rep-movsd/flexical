@@ -21,6 +21,7 @@ import {
   getUserByUsername,
   hasRevealed,
   insertReveal,
+  countUserPlays,
   playerRank,
   upsertPlay,
   wordsOf,
@@ -52,6 +53,7 @@ function gameView(game: GameRow) {
  */
 async function meView(db: D1Database, game: GameRow, user: { id: string } | null) {
   if (!user) return null;
+  const gamesPlayed = await countUserPlays(db, user.id);
   const play = await getPlay(db, user.id, game.id);
   const revealed = await hasRevealed(db, user.id, game.id);
 
@@ -65,6 +67,7 @@ async function meView(db: D1Database, game: GameRow, user: { id: string } | null
       words: [] as string[],
       badges: computeBadges([], game.seed_a, game.seed_b),
       badgeWords: computeBadgeWords([], game.seed_a, game.seed_b),
+      gamesPlayed,
     };
   }
 
@@ -78,6 +81,7 @@ async function meView(db: D1Database, game: GameRow, user: { id: string } | null
     words,
     badges: computeBadges(words, game.seed_a, game.seed_b),
     badgeWords: computeBadgeWords(words, game.seed_a, game.seed_b),
+    gamesPlayed,
   };
 }
 

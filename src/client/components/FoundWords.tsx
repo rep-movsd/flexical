@@ -1,7 +1,7 @@
 import { Component } from "preact";
 import type { AnswerCount, BadgeKind } from "../../shared/types";
-import { BadgeIcon } from "./BadgeIcons";
 import { Icon } from "./icons";
+import { BadgeIcon } from "./BadgeIcons";
 
 export interface FoundWord {
   word: string;
@@ -9,6 +9,8 @@ export interface FoundWord {
   /** Badge marks earned by this specific word. */
   marks: BadgeKind[];
 }
+
+export type FoundView = "words" | "counts" | "help";
 
 interface Props {
   words: FoundWord[];
@@ -20,34 +22,39 @@ interface Props {
   minLength: number;
   /** Precomputed number of possible answers per length. */
   counts: AnswerCount[];
-}
-
-type View = "words" | "counts";
-
-interface State {
-  view: View;
+  /** Which body to show (controlled by the parent). */
+  view: FoundView;
+  onView: (view: FoundView) => void;
 }
 
 /**
- * Found-words panel. The header shows total points and progress
- * ("Found M/N", N = every possible answer). Two icon buttons switch the body
- * between a chronological word log and per-length answer counts.
+ * Found-words panel. The header shows total points and progress ("Found M/N",
+ * N = every possible answer). Three icon buttons switch the body between a
+ * wrapping word list, per-length progress bars, and the game explanation.
  */
-export class FoundWords extends Component<Props, State> {
-  state: State = { view: "words" };
-
+export class FoundWords extends Component<Props> {
   /** Total possible answers across every length. */
   private total(): number {
     return this.props.counts.reduce((sum, entry) => sum + entry.count, 0);
   }
 
-  private setView = (view: View): void => {
-    this.setState({ view });
-  };
+  private viewButton(view: FoundView, title: string, icon: "words" | "stats" | "help") {
+    const active = this.props.view === view;
+    return (
+      <button
+        type="button"
+        class={active ? "iconbtn iconbtn--active" : "iconbtn"}
+        aria-pressed={active}
+        title={title}
+        onClick={() => this.props.onView(view)}
+      >
+        <Icon name={icon} size={18} />
+      </button>
+    );
+  }
 
   render() {
-    const { words, score } = this.props;
-    const { view } = this.state;
+    const { words, score, view } = this.props;
 
     return (
       <section class="panel found">
@@ -60,67 +67,48 @@ export class FoundWords extends Component<Props, State> {
             </span>
           </p>
           <div class="found__views" role="group" aria-label="Found words view">
-            <button
-              type="button"
-              class={view === "words" ? "iconbtn iconbtn--active" : "iconbtn"}
-              aria-pressed={view === "words"}
-              title="Words found, newest first"
-              onClick={() => this.setView("words")}
-            >
-              <Icon name="words" size={18} />
-            </button>
-            <button
-              type="button"
-              class={view === "counts" ? "iconbtn iconbtn--active" : "iconbtn"}
-              aria-pressed={view === "counts"}
-              title="Remaining by word length"
-              onClick={() => this.setView("counts")}
-            >
-              <Icon name="stats" size={18} />
-            </button>
+            {this.viewButton("words", "Words found, newest first", "words")}
+            {this.viewButton("counts", "Remaining by word length", "stats")}
+            {this.viewButton("help", "How to play", "help")}
           </div>
         </div>
 
-        {view === "words" ? this.renderWords() : this.renderCounts()}
+        {view === "words"
+          ? this.renderWords()
+          : view === "counts"
+            ? this.renderCounts()
+            : this.renderHelp()}
       </section>
     );
   }
 
-  /** View A: every word found, newest first, in plain default flow. */
+  /** View A: every word found, newest first, as plain wrapping text. */
   private renderWords() {
     const { words } = this.props;
     if (words.length === 0) {
       return <p class="muted">No words yet.</p>;
     }
     return (
-      <div class="found__log">
+      <p class="found__log">
         {words
           .slice()
           .reverse()
-          .map((entry, index) => (
-            <div class="found__log-word" key={`${entry.word}-${index}`}>
-              {entry.word}
-            </div>
-          ))}
-      </div>
+          .map((entry) => entry.word)
+          .join(" ")}
+      </p>
     );
   }
 
-  /** View B: one lane per word length, each counting found / total. */
+  /** View B: one progress bar per word length (found / total). */
   private renderCounts() {
     const { words, maxLength, minLength, counts } = this.props;
 
     const totals = new Map<number, number>();
     for (const entry of counts) totals.set(entry.length, entry.count);
 
-    const byLength = new Map<number, FoundWord[]>();
+    const found = new Map<number, number>();
     for (const entry of words) {
-      const bucket = byLength.get(entry.word.length) ?? [];
-      bucket.push(entry);
-      byLength.set(entry.word.length, bucket);
-    }
-    for (const bucket of byLength.values()) {
-      bucket.sort((a, b) => a.word.localeCompare(b.word));
+      found.set(entry.word.length, (found.get(entry.word.length) ?? 0) + 1);
     }
 
     const highest = Math.max(
@@ -134,34 +122,52 @@ export class FoundWords extends Component<Props, State> {
     return (
       <div class="found__lanes">
         {lengths.map((length) => {
-          const bucket = byLength.get(length) ?? [];
+          const have = found.get(length) ?? 0;
           const total = totals.get(length);
+          const pct = total ? Math.round((have / total) * 100) : 0;
           return (
             <div class="found__lane" key={length}>
               <span class="found__lane-len">{length}</span>
-              <span class="found__lane-words">
-                {bucket.length === 0 ? (
-                  <span class="muted">—</span>
-                ) : (
-                  bucket.map((entry) => (
-                    <span class="chip" key={entry.word}>
-                      {entry.word}
-                      {entry.marks.map((kind) => (
-                        <BadgeIcon key={kind} kind={kind} />
-                      ))}
-                      <span class="chip__pts">+{entry.points}</span>
-                    </span>
-                  ))
-                )}
+              <span class="found__lane-bar">
+                <span class="found__lane-fill" style={{ width: `${pct}%` }} />
               </span>
               {total !== undefined && (
-                <span class="found__lane-count" title={`${bucket.length} of ${total} found`}>
-                  {bucket.length}/{total}
+                <span class="found__lane-count" title={`${have} of ${total} found`}>
+                  {have}/{total}
                 </span>
               )}
             </div>
           );
         })}
+      </div>
+    );
+  }
+
+  /** View C: how to play. */
+  private renderHelp() {
+    return (
+      <div class="help">
+        <p>Find as many words as you can from the letters above.</p>
+        <ul>
+          <li>
+            Words must be <strong>4+ letters</strong> and use <strong>only the letters shown</strong>.
+            You can reuse a letter as often as you like.
+          </li>
+          <li>Longer words score exponentially more.</li>
+          <li>
+            <BadgeIcon kind="sun" /> you found the hidden seed word.
+          </li>
+          <li>
+            <BadgeIcon kind="star" /> a non-seed word at least as long as the seed.
+          </li>
+          <li>Your words save automatically — come back and keep adding any time.</li>
+          <li>
+            Looking at someone's answers locks that game for you, so only peek when you're done.
+          </li>
+          <li>
+            Every day is a new puzzle; replay past days from the <a href="/archive">Archive</a>.
+          </li>
+        </ul>
       </div>
     );
   }

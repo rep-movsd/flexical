@@ -190,6 +190,15 @@ export async function allTime(
   return results;
 }
 
+/** How many games a player has recorded a run for (used for onboarding). */
+export async function countUserPlays(db: D1Database, userId: string): Promise<number> {
+  const row = await db
+    .prepare("SELECT COUNT(*) AS n FROM plays WHERE user_id = ?")
+    .bind(userId)
+    .first<{ n: number }>();
+  return row?.n ?? 0;
+}
+
 /** A single player's row on a game board, with their rank. */
 export interface RankedPlay {
   rank: number;

@@ -8,7 +8,8 @@ import { isBuildable, toLetterSet } from "../../shared/engine/letters";
 import type { BadgeKind, BadgeWords, GameView } from "../../shared/types";
 import { Letters } from "../components/Letters";
 import { WordEntry } from "../components/WordEntry";
-import { FoundWords, type FoundWord } from "../components/FoundWords";
+import { FoundWords, type FoundWord, type FoundView } from "../components/FoundWords";
+import { Icon } from "../components/icons";
 
 interface Props {
   /** Route param for /play/:date; absent on "/" (today's game). */
@@ -20,7 +21,11 @@ interface State {
   error: string | null;
   game: GameView | null;
   dict: Set<string> | null;
+  /** Current display order of the letter keys (shufflable). */
+  order: string[];
   found: FoundWord[];
+  /** Which found-words body is shown. */
+  view: FoundView;
   draft: string;
   message: { text: string; kind: "ok" | "err" } | null;
   /** Revealing another player's words locks the game permanently. */
@@ -35,7 +40,9 @@ const EMPTY: State = {
   error: null,
   game: null,
   dict: null,
+  order: [],
   found: [],
+  view: "words",
   draft: "",
   message: null,
   locked: false,
@@ -98,6 +105,15 @@ export class GameScreen extends Component<Props, State> {
     if (this.state.locked) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
+    // Spacebar shuffles the letter keys (works even while the input is focused).
+    if (event.key === " ") {
+      event.preventDefault();
+      const focused = document.activeElement as HTMLElement | null;
+      if (focused && focused.tagName === "BUTTON") focused.blur();
+      this.shuffle();
+      return;
+    }
+
     if (event.key === "Escape") {
       event.preventDefault();
       this.setState({ draft: "", message: null });
@@ -135,6 +151,26 @@ export class GameScreen extends Component<Props, State> {
     return new Set(this.state.game?.letters ?? []);
   }
 
+  /** Reorder the letter keys into a fresh random permutation. */
+  private shuffle = (): void => {
+    const base = this.state.order.length ? this.state.order : this.state.game?.letters ?? [];
+    if (base.length < 2) return;
+    let next = base;
+    do {
+      next = this.shuffled(base);
+    } while (next.join("") === base.join(""));
+    this.setState({ order: next });
+  };
+
+  private shuffled(source: string[]): string[] {
+    const a = [...source];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
   private async load(date?: string): Promise<void> {
     this.alive = true;
     this.setState({ ...EMPTY });
@@ -161,7 +197,10 @@ export class GameScreen extends Component<Props, State> {
         loading: false,
         game,
         dict,
+        order: [...game.letters],
         found,
+        // New / anonymous players land on the help tab.
+        view: !me || me.gamesPlayed === 0 ? "help" : "words",
         locked: me?.locked ?? false,
         badgeWords,
       });
@@ -211,6 +250,8 @@ export class GameScreen extends Component<Props, State> {
       found: [...prev.found, { word, points, marks: [] }],
       draft: "",
       message: { text: `${shown}  +${points}`, kind: "ok" },
+      // Leave the help tab once the first word is found.
+      view: prev.view === "help" ? "words" : prev.view,
     }));
     this.scheduleSave();
   };
@@ -228,7 +269,7 @@ export class GameScreen extends Component<Props, State> {
       this.saveTimer = undefined;
     }
     const { game, found } = this.state;
-    if (!game) return;
+    if (!game || found.length === 0) return; // never create an empty run
 
     const { api } = this.context as AppContextValue;
     try {
@@ -256,7 +297,7 @@ export class GameScreen extends Component<Props, State> {
   }
 
   render() {
-    const { loading, error, game, locked, draft, message, found } = this.state;
+    const { loading, error, game, locked, draft, message, found, order, view } = this.state;
 
     if (loading) {
       return (
@@ -281,6 +322,15 @@ export class GameScreen extends Component<Props, State> {
           <section class="panel game__main">
             <header class="game__head">
               <h1 class="title">{isToday ? "Today's game" : game.date}</h1>
+              <button
+                type="button"
+                class="iconbtn"
+                title="Shuffle letters (Space)"
+                aria-label="Shuffle letters"
+                onClick={this.shuffle}
+              >
+                <Icon name="shuffle" size={18} />
+              </button>
             </header>
 
             {locked && (
@@ -290,7 +340,11 @@ export class GameScreen extends Component<Props, State> {
               </p>
             )}
 
-            <Letters letters={game.letters} onPick={this.pick} disabled={locked} />
+            <Letters
+              letters={order.length ? order : game.letters}
+              onPick={this.pick}
+              disabled={locked}
+            />
             <WordEntry
               value={draft}
               onInput={(value) => {
@@ -322,6 +376,8 @@ export class GameScreen extends Component<Props, State> {
             maxLength={game.longestSeedLength}
             minLength={MIN_WORD_LENGTH}
             counts={game.counts}
+            view={view}
+            onView={(next) => this.setState({ view: next })}
           />
         </div>
       </div>

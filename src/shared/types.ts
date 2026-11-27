@@ -37,6 +37,8 @@ export interface MeView {
   words: string[];
   badges: Badges;
   badgeWords: BadgeWords;
+  /** Total games this player has recorded a run for. */
+  gamesPlayed: number;
 }
 
 export interface GameResponse {

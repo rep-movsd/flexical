@@ -445,6 +445,31 @@ h3 {
   line-height: 1.5;
 }
 
+/* Help tab: how to play. */
+.help {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.help p {
+  margin: 0 0 8px;
+}
+
+.help ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+}
+
+.help .badge-icon {
+  font-size: 0.95rem;
+}
+
 .found__lanes {
   flex: 1 1 auto;
   min-height: 0;
@@ -457,7 +482,7 @@ h3 {
 
 .found__lane {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
   padding: 8px 0;
   border-top: 1px solid var(--border);
@@ -478,17 +503,23 @@ h3 {
   font-variant-numeric: tabular-nums;
 }
 
-.found__lane-words {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  padding-top: 2px;
+.found__lane-bar {
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-elev-2);
+  overflow: hidden;
+}
+
+.found__lane-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), #a58bff);
+  transition: width 0.2s ease;
 }
 
 .found__lane-count {
-  margin-left: auto;
-  padding-top: 4px;
   color: var(--fg-muted);
   font-variant-numeric: tabular-nums;
   font-size: 0.8rem;
