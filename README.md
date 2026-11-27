@@ -30,15 +30,13 @@ Currently an early prototype.
   the seed. (🌙, the second-seed badge, is currently disabled — see below.)
 - The server **precomputes how many answers exist per word length**; each
   found-words lane shows `found / total`.
-- **Today's game:** one submission. **Past games:** replayable without limit,
-  keeping your best score. Each game has a leaderboard; the all-time "marathon"
-  board sums your best score on every game.
+- **Open forever, untimed.** There is no clock and no race: play at your own pace
+  and keep adding words until you've found them all. Your found words are
+  **saved automatically** as you go (signed-in players only), so you can come
+  back and continue any time. Each game has a leaderboard; the all-time
+  "marathon" board sums your score on every game you've played.
 - **Revealing** another player's words (from a leaderboard) permanently locks
   that game for you.
-- **Race mode** replays the top 5 runs for a game as spoiler-free, accurately
-  timed ghosts (score and word count only, never the words).
-- **Get-ready overlay:** before play begins, a short countdown blurs the board so
-  nobody sees the letters early (Enter or the Start button begins).
 
 ## Stack
 
@@ -65,11 +63,11 @@ src/
     app.tsx                 Root: owns Api + Store, resolves session, routing
     api.ts                  Typed fetch client (sends X-TZ-Offset)
     dictionary.ts           loads /words.txt for local validation
-    store.ts                observable store (session, route, viewport)
+    store.ts                observable store (session, route)
     context.ts              AppContext (api + store injection)
     time.ts                 viewer-local date helpers
-    components/             Shell, Letters, WordEntry, FoundWords, ScorePanel,
-                            RacePanel, BadgeIcons, Timer
+    components/             Shell, Letters, WordEntry, FoundWords,
+                            BadgeIcons, icons
     screens/                GameScreen, ArchiveScreen, LeaderboardScreen,
                             AllTimeScreen, AuthScreen, ProfileScreen, NotFound
     styles.css              responsive styles
@@ -98,7 +96,6 @@ Pure TypeScript, no I/O, no framework — safe on both the client and the Worker
 | `badges.ts` | `computeBadgeWords`, `computeBadges`, `wordMarks` (moon disabled) |
 | `seeds.ts` | `pickSeed` — deterministic, date-seeded single seed word |
 | `validation.ts` | `classifyWords` — server-side word classification |
-| `timeline.ts` | ghost replay helpers |
 | `answers.ts` | `countAnswersByLength` — per-length answer counts |
 | `dictionary.ts` | `Dictionary` interface + parsers |
 
@@ -156,15 +153,14 @@ local day.
 | GET | `/api/games/today` | `{ game, me }` |
 | GET | `/api/games` | archive list |
 | GET | `/api/games/:id` | `{ game, me }` |
-| GET | `/api/games/:id/race` | top-5 ghosts (no words) |
-| POST | `/api/games/:id/check` | `{ words }` → live badge marks |
-| POST | `/api/games/:id/submit` | `{ words:[{word,t}] }` (auth) → result |
+| POST | `/api/games/:id/words` | `{ words }` → validate + badge marks; auto-saves when signed in |
 | GET | `/api/games/:id/leaderboard` | points + badges |
 | POST | `/api/games/:id/reveal/:username` | their words + records your lock (auth) |
 | GET | `/api/leaderboard/alltime` | marathon totals |
 
-`me` on the game endpoints is `{ played, revealed, locked, bestScore, words,
-timeline, badges, badgeWords }` or `null` for anonymous visitors.
+`me` on the game endpoints is `{ played, revealed, locked, score, bestScore,
+words, badges, badgeWords }` or `null` for anonymous visitors. `words` keeps the
+order they were found.
 
 ## Data model (`src/server/db/migrations/`)
 
@@ -172,8 +168,8 @@ timeline, badges, badgeWords }` or `null` for anonymous visitors.
 - **sessions** — id, user_id, created_at, expires_at
 - **games** — id/date, seed_a, seed_b (empty for single-seed games), letters,
   longest/shortest seed length, answer_counts_json, created_at
-- **plays** — (user_id, game_id) PK, words_json (timeline), score, words_found,
-  duration_ms, finished_at
+- **plays** — (user_id, game_id) PK, words_json (the found words, in order),
+  score, words_found, duration_ms (unused, kept for legacy), finished_at
 - **reveals** — (user_id, game_id) PK, revealed_at
 
 Migrations are applied with `wrangler d1 migrations apply` (tracked in
@@ -206,6 +202,9 @@ including the inlined dictionary.
 
 ## Notes
 
+- **No timer, no races.** The game is an untimed "find them all" puzzle; race
+  mode and the get-ready countdown were removed. There is no single-shot
+  submission — a game stays open and your words auto-save as you find them.
 - 🌙 **Moon is disabled.** Games currently use a single seed word, so the
   second-seed badge is commented out (not deleted) in
   `src/shared/engine/badges.ts`. Re-enable it if games go back to a seed *pair*.

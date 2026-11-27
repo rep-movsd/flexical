@@ -1,53 +1,30 @@
 import { Component } from "preact";
-import { route } from "preact-router";
 import { AppContext, type AppContextValue } from "../context";
-import { ApiRequestError } from "../api";
 import { loadDictionary } from "../dictionary";
 import { localDateString } from "../time";
 import { MIN_WORD_LENGTH, pointsForLength } from "../../shared/engine/scoring";
 import { isBuildable, toLetterSet } from "../../shared/engine/letters";
-import type { BadgeKind, BadgeWords, GameView, Ghost, SubmitResult } from "../../shared/types";
+import type { BadgeKind, BadgeWords, GameView } from "../../shared/types";
 import { Letters } from "../components/Letters";
 import { WordEntry } from "../components/WordEntry";
 import { FoundWords, type FoundWord } from "../components/FoundWords";
-import { ScorePanel } from "../components/ScorePanel";
-import { RacePanel } from "../components/RacePanel";
-import { BadgeIcons } from "../components/BadgeIcons";
-import { Timer } from "../components/Timer";
 
 interface Props {
   /** Route param for /play/:date; absent on "/" (today's game). */
   date?: string;
 }
 
-type PauseReason = "too_short" | "duplicate" | "not_in_rack" | "unknown";
-
 interface State {
   loading: boolean;
   error: string | null;
   game: GameView | null;
   dict: Set<string> | null;
-  ghosts: Ghost[];
   found: FoundWord[];
   draft: string;
   message: { text: string; kind: "ok" | "err" } | null;
-  /** True while an error is showing: the clock and ghosts are frozen. */
-  paused: boolean;
-  /** Why we paused, so resuming can clear the input for un-fixable words. */
-  pauseReason: PauseReason | null;
-  /** False until the "get ready" countdown finishes (clock stays stopped). */
-  ready: boolean;
-  /** Milliseconds left in the get-ready countdown. */
-  readyMs: number;
-  elapsed: number;
-  running: boolean;
+  /** Revealing another player's words locks the game permanently. */
   locked: boolean;
-  revealed: boolean;
-  played: boolean;
-  bestScore: number;
   badgeWords: BadgeWords;
-  submitting: boolean;
-  result: SubmitResult | null;
 }
 
 const EMPTY_BADGE_WORDS: BadgeWords = { sun: null, moon: null, star: null };
@@ -57,29 +34,12 @@ const EMPTY: State = {
   error: null,
   game: null,
   dict: null,
-  ghosts: [],
   found: [],
   draft: "",
   message: null,
-  paused: false,
-  pauseReason: null,
-  ready: true,
-  readyMs: 0,
-  elapsed: 0,
-  running: false,
   locked: false,
-  revealed: false,
-  played: false,
-  bestScore: 0,
   badgeWords: EMPTY_BADGE_WORDS,
-  submitting: false,
-  result: null,
 };
-
-/** "6 letters" or "8–10 letters": how to describe the seed lengths. */
-function seedLengthText(shortest: number, longest: number): string {
-  return shortest === longest ? `${shortest} letters` : `${shortest}–${longest} letters`;
-}
 
 /** Badge marks for one word, given what we know about the seeds. */
 function marksFor(
@@ -97,37 +57,21 @@ function marksFor(
 }
 
 /**
- * Play screen. Words are validated locally for instant feedback; the server
- * re-validates and owns the score. Today's game allows one submission; past
- * games can be replayed (best score kept).
+ * Play screen. A game stays open forever — words accumulate and auto-save as you
+ * find them; the only way it locks is by revealing another player's words.
  */
 export class GameScreen extends Component<Props, State> {
   static contextType = AppContext;
 
   state: State = { ...EMPTY };
 
-  private timer?: ReturnType<typeof setInterval>;
   private alive = true;
-  /** Attempt start, used for per-word timestamps (t = 0). */
-  private t0 = Date.now();
-  /** word → timestamp, used when building the submit payload. */
-  private timestamps = new Map<string, number>();
+  private saveTimer?: ReturnType<typeof setTimeout>;
 
   componentDidMount(): void {
     window.addEventListener("keydown", this.onKeyDown);
-    this.timer = setInterval(() => {
-      const { ready, running, paused } = this.state;
-      if (!ready) {
-        this.setState((prev) => {
-          const readyMs = Math.max(0, prev.readyMs - 200);
-          if (readyMs === 0) return { ready: true, readyMs: 0, running: true, paused: false };
-          return { readyMs };
-        });
-        return;
-      }
-      if (!running || paused) return;
-      this.setState((prev) => ({ elapsed: prev.elapsed + 200 }));
-    }, 200);
+    window.addEventListener("visibilitychange", this.onHide);
+    window.addEventListener("pagehide", this.onHide);
     this.load(this.props.date);
   }
 
@@ -138,60 +82,24 @@ export class GameScreen extends Component<Props, State> {
   componentWillUnmount(): void {
     this.alive = false;
     window.removeEventListener("keydown", this.onKeyDown);
-    if (this.timer) clearInterval(this.timer);
+    window.removeEventListener("visibilitychange", this.onHide);
+    window.removeEventListener("pagehide", this.onHide);
+    if (this.saveTimer) clearTimeout(this.saveTimer);
   }
+
+  /** Best-effort flush when the page is being hidden or closed. */
+  private onHide = (): void => {
+    void this.flush();
+  };
 
   /** Type anywhere: letters build the word without focusing the input. */
   private onKeyDown = (event: KeyboardEvent): void => {
-    const { locked, submitting, paused, ready } = this.state;
-    if (locked || submitting) return;
-
-    // Get-ready overlay: Enter starts the game.
-    if (!ready) {
-      if (event.key === "Enter") {
-        event.preventDefault();
-        this.startGame();
-      }
-      return;
-    }
-
+    if (this.state.locked) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
-    if (paused) {
-      if (["Shift", "Control", "Alt", "Meta", "CapsLock", "Tab"].includes(event.key)) return;
-      // Resuming from a "not in dictionary" pause also clears the draft + message.
-      const clear = this.state.pauseReason === "unknown";
-      const resume = (patch: Partial<State>): void =>
-        this.setState((prev) => ({
-          paused: false,
-          pauseReason: null,
-          draft: clear ? "" : prev.draft,
-          message: null,
-          ...patch,
-        }));
-
-      if (event.key === "Enter") {
-        resume({});
-        event.preventDefault();
-      } else if (/^[a-zA-Z]$/.test(event.key)) {
-        resume({ draft: (clear ? "" : this.state.draft) + event.key.toUpperCase() });
-        event.preventDefault();
-      } else if (event.key === "Backspace") {
-        resume({ draft: clear ? "" : this.state.draft.slice(0, -1) });
-        event.preventDefault();
-      } else if (event.key === "Escape") {
-        this.setState({ draft: "", message: null, paused: false, pauseReason: null });
-      } else {
-        // Any other key (arrows, digits, …) just resumes.
-        resume({});
-      }
-      return;
-    }
-
-    // Escape clears the word, even when the input is focused.
     if (event.key === "Escape") {
       event.preventDefault();
-      this.setState({ draft: "", message: null, paused: false, pauseReason: null });
+      this.setState({ draft: "", message: null });
       return;
     }
 
@@ -201,15 +109,14 @@ export class GameScreen extends Component<Props, State> {
     if (inField) return; // the input handles its own typing
 
     if (/^[a-zA-Z]$/.test(event.key)) {
-      const letter = event.key.toUpperCase();
-      this.setState((prev) => ({ draft: prev.draft + letter, paused: false, pauseReason: null }));
       event.preventDefault();
+      this.setState((prev) => ({ draft: prev.draft + event.key.toUpperCase() }));
     } else if (event.key === "Backspace") {
-      this.setState((prev) => ({ draft: prev.draft.slice(0, -1), paused: false, pauseReason: null }));
       event.preventDefault();
+      this.setState((prev) => ({ draft: prev.draft.slice(0, -1) }));
     } else if (event.key === "Enter") {
-      this.tryWord();
       event.preventDefault();
+      this.tryWord();
     }
   };
 
@@ -227,39 +134,21 @@ export class GameScreen extends Component<Props, State> {
 
       const game = response.game;
       const me = response.me;
-      const race = await api.getRace(game.id).catch(() => ({ ghosts: [] as Ghost[] }));
-      if (!this.alive) return;
-
       const badgeWords = me?.badgeWords ?? EMPTY_BADGE_WORDS;
-      const found: FoundWord[] = me?.played
-        ? me.timeline.map((entry) => ({
-            word: entry.word,
-            points: pointsForLength(entry.word.length, game.k),
-            marks: marksFor(entry.word, badgeWords, game.shortestSeedLength),
-          }))
-        : [];
+      const found: FoundWord[] = (me?.words ?? []).map((word) => ({
+        word,
+        points: pointsForLength(word.length, game.k),
+        marks: marksFor(word, badgeWords, game.shortestSeedLength),
+      }));
 
-      this.t0 = Date.now();
-      this.timestamps = new Map();
-      const locked = me?.locked ?? false;
-      const played = me?.played ?? false;
-      // Always lead into a playable game with the get-ready overlay.
-      const showReady = !locked;
       this.setState({
         ...EMPTY,
         loading: false,
         game,
         dict,
-        ghosts: race.ghosts,
         found,
-        locked,
-        revealed: me?.revealed ?? false,
-        played,
-        bestScore: me?.bestScore ?? 0,
+        locked: me?.locked ?? false,
         badgeWords,
-        ready: !showReady,
-        readyMs: showReady ? 5000 : 0,
-        running: false,
       });
     } catch (error) {
       if (!this.alive) return;
@@ -271,44 +160,12 @@ export class GameScreen extends Component<Props, State> {
     }
   }
 
-  /** Begin play: close the ready overlay and start the clock. */
-  private startGame = (): void => {
-    this.t0 = Date.now();
-    this.timestamps = new Map();
-    this.setState({ ready: true, readyMs: 0, running: true, paused: false, elapsed: 0 });
-  };
-
   private pick = (letter: string): void => {
-    if (!this.state.ready) return;
+    if (this.state.locked) return;
     const el = document.activeElement as HTMLElement | null;
     if (el && el.tagName === "BUTTON") el.blur();
-    this.setState((prev) => {
-      const clear = prev.paused && prev.pauseReason === "unknown";
-      return {
-        draft: (clear ? "" : prev.draft) + letter,
-        message: prev.paused ? null : prev.message,
-        paused: false,
-        pauseReason: null,
-      };
-    });
+    this.setState((prev) => ({ draft: prev.draft + letter, message: null }));
   };
-
-  /** Ask the server for this word's badge marks (sun/moon need the seeds). */
-  private async classify(word: string): Promise<void> {
-    const { game } = this.state;
-    if (!game) return;
-    const { api } = this.context as AppContextValue;
-    try {
-      const { results } = await api.checkWords(game.id, [word]);
-      const marks: BadgeKind[] = results[0]?.marks ?? [];
-      if (!this.alive) return;
-      this.setState((prev) => ({
-        found: prev.found.map((entry) => (entry.word === word ? { ...entry, marks } : entry)),
-      }));
-    } catch {
-      // Leave marks empty on failure; the submit result is authoritative anyway.
-    }
-  }
 
   private tryWord = (): void => {
     const { draft, game, dict, found, locked } = this.state;
@@ -316,130 +173,66 @@ export class GameScreen extends Component<Props, State> {
     const word = draft.trim().toLowerCase();
     if (!word) return;
 
-    // Failures pause the clock and the ghost race until the next key press.
-    const fail = (reason: PauseReason, text: string): void =>
-      this.setState({ message: { text, kind: "err" }, paused: true, pauseReason: reason });
+    const fail = (text: string): void => this.setState({ message: { text, kind: "err" } });
 
-    if (word.length < MIN_WORD_LENGTH) {
-      fail("too_short", `Too short — ${MIN_WORD_LENGTH}+ letters.`);
-      return;
+    if (word.length < MIN_WORD_LENGTH) return fail(`Too short — ${MIN_WORD_LENGTH}+ letters.`);
+    if (found.some((entry) => entry.word === word)) return fail("Already found that one.");
+    if (!isBuildable(word, toLetterSet(game.letters))) {
+      return fail("Uses letters that aren't allowed.");
     }
-    if (found.some((entry) => entry.word === word)) {
-      fail("duplicate", "Already found that one.");
-      return;
-    }
-    const allowed = toLetterSet(game.letters);
-    if (!isBuildable(word, allowed)) {
-      fail("not_in_rack", "Uses letters that aren't allowed.");
-      return;
-    }
-    if (!dict.has(word)) {
-      fail("unknown", "Not in the dictionary.");
-      return;
-    }
+    if (!dict.has(word)) return fail("Not in the dictionary.");
 
     const points = pointsForLength(word.length, game.k);
-    this.timestamps.set(word, Date.now() - this.t0);
     this.setState((prev) => ({
       found: [...prev.found, { word, points, marks: [] }],
       draft: "",
       message: { text: `${word.toUpperCase()}  +${points}`, kind: "ok" },
-      paused: false,
-      pauseReason: null,
     }));
-    void this.classify(word);
+    this.scheduleSave();
   };
 
-  private submit = async (): Promise<void> => {
-    const { game, found, submitting, locked } = this.state;
-    const { api, store } = this.context as AppContextValue;
-    if (!game || submitting || locked) return;
+  /** Debounce saves so a burst of words is one write, not many. */
+  private scheduleSave = (): void => {
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = setTimeout(() => void this.flush(), 1000);
+  };
 
-    if (!store.session) {
-      route("/signin");
-      return;
+  /** Persist the player's word set (anonymous: validate + badge marks only). */
+  private async flush(): Promise<void> {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = undefined;
     }
+    const { game, found } = this.state;
+    if (!game) return;
 
-    this.setState({ submitting: true, message: null });
-    const words = found.map((entry) => ({ word: entry.word, t: this.timestamps.get(entry.word) ?? 0 }));
-
+    const { api } = this.context as AppContextValue;
     try {
-      const result = await api.submit(game.id, words);
+      const result = await api.saveWords(
+        game.id,
+        found.map((entry) => entry.word),
+      );
       if (!this.alive) return;
       const badgeWords = result.badgeWords ?? EMPTY_BADGE_WORDS;
-      this.setState({
-        submitting: false,
-        result,
-        played: true,
-        locked: result.locked,
-        running: false,
-        paused: false,
-        pauseReason: null,
-        bestScore: Math.max(result.bestScore, this.state.bestScore),
+      this.setState((prev) => ({
         badgeWords,
-        found: result.accepted.map((word) => ({
-          word,
-          points: pointsForLength(word.length, game.k),
-          marks: marksFor(word, badgeWords, game.shortestSeedLength),
+        locked: result.locked,
+        found: prev.found.map((entry) => ({
+          ...entry,
+          marks: marksFor(entry.word, badgeWords, game.shortestSeedLength),
         })),
-      });
-    } catch (error) {
-      if (!this.alive) return;
-      if (error instanceof ApiRequestError && error.status === 401) {
-        route("/signin");
-        return;
-      }
-      this.setState({
-        submitting: false,
-        message: { text: "Could not submit. Try again.", kind: "err" },
-      });
+      }));
+    } catch {
+      // Not fatal — local play continues and the next flush retries.
     }
-  };
-
-  private newAttempt = (): void => {
-    // Replayed attempts also get the get-ready overlay.
-    this.setState({
-      found: [],
-      draft: "",
-      message: null,
-      elapsed: 0,
-      result: null,
-      played: false,
-      paused: false,
-      pauseReason: null,
-      badgeWords: EMPTY_BADGE_WORDS,
-      running: false,
-      ready: false,
-      readyMs: 5000,
-    });
-  };
+  }
 
   private score(): number {
     return this.state.found.reduce((sum, entry) => sum + entry.points, 0);
   }
 
   render() {
-    const {
-      loading,
-      error,
-      game,
-      locked,
-      revealed,
-      played,
-      running,
-      paused,
-      elapsed,
-      draft,
-      message,
-      ghosts,
-      found,
-      badgeWords,
-      submitting,
-      result,
-      bestScore,
-      ready,
-      readyMs,
-    } = this.state;
+    const { loading, error, game, locked, draft, message, found } = this.state;
 
     if (loading) {
       return (
@@ -457,38 +250,18 @@ export class GameScreen extends Component<Props, State> {
     }
 
     const isToday = game.id === localDateString();
-    const score = this.score();
-    const bw = badgeWords ?? EMPTY_BADGE_WORDS;
-    const badges = { sun: !!bw.sun, moon: !!bw.moon, star: !!bw.star };
-    const selfBadges = {
-      sun: found.some((entry) => entry.marks.includes("sun")),
-      moon: found.some((entry) => entry.marks.includes("moon")),
-      star: found.some((entry) => entry.marks.includes("star")),
-    };
 
     return (
-      <>
-      <div class={ready ? "board-frame" : "board-frame board-frame--blurred"}>
-        <div class="pane pane--left" aria-hidden="true" />
-
+      <div class="board-frame">
         <div class="pane pane--mid">
           <section class="panel game__main">
             <header class="game__head">
-              <div>
-                <h1 class="title">{isToday ? "Today's game" : game.date}</h1>
-                <p class="muted">
-                  {game.letters.length} letters · seeds are{" "}
-                  {seedLengthText(game.shortestSeedLength, game.longestSeedLength)}
-                </p>
-              </div>
-              <Timer seconds={Math.floor(elapsed / 1000)} running={running && !paused} />
+              <h1 class="title">{isToday ? "Today's game" : game.date}</h1>
             </header>
 
             {locked && (
               <p class="notice">
-                {revealed
-                  ? "You revealed this game, so it's locked."
-                  : "You've played today's game. Come back tomorrow, or revisit past games."}
+                You revealed this game, so it's locked.
                 <a href={`/board/${game.id}`}> See the board</a>
               </p>
             )}
@@ -496,89 +269,29 @@ export class GameScreen extends Component<Props, State> {
             <Letters letters={game.letters} onPick={this.pick} disabled={locked} />
             <WordEntry
               value={draft}
-              onInput={(value) =>
-                this.setState((prev) => ({
-                  draft: value,
-                  message: prev.paused ? null : prev.message,
-                  paused: false,
-                  pauseReason: null,
-                }))
-              }
+              onInput={(value) => this.setState({ draft: value, message: null })}
               onSubmit={this.tryWord}
-              disabled={locked || !ready}
+              disabled={locked}
             />
 
             <div class="flash-slot">
               {message && (
                 <p class={message.kind === "ok" ? "flash flash--ok" : "flash flash--err"}>
                   {message.text}
-                  {message.kind === "err" && !locked && (
-                    <span class="flash__hint"> — press any key to resume</span>
-                  )}
                 </p>
               )}
             </div>
-
-            {result && (
-              <div class="result">
-                <p class="result__score">
-                  Scored <strong>{result.score}</strong>
-                  {!result.locked && <span class="muted"> · best {bestScore}</span>}
-                </p>
-                <BadgeIcons badges={result.badges} showEmpty />
-              </div>
-            )}
           </section>
 
           <FoundWords
             words={found}
+            score={this.score()}
             maxLength={game.longestSeedLength}
             minLength={MIN_WORD_LENGTH}
             counts={game.counts}
           />
         </div>
-
-        <div class="pane pane--right">
-          <ScorePanel score={score} foundCount={found.length} badges={badges} showBadges={played}>
-            {!locked && (
-              <div class="score__actions">
-                <button
-                  type="button"
-                  class="btn btn--primary btn--block"
-                  disabled={submitting || found.length === 0}
-                  onClick={this.submit}
-                >
-                  {submitting ? "Submitting…" : isToday ? "Submit run" : "Submit best"}
-                </button>
-                {!isToday && played && (
-                  <button type="button" class="btn btn--ghost btn--block" onClick={this.newAttempt}>
-                    New attempt
-                  </button>
-                )}
-              </div>
-            )}
-          </ScorePanel>
-          <RacePanel ghosts={ghosts} elapsed={elapsed} selfScore={score} selfBadges={selfBadges} />
-        </div>
       </div>
-
-      {!ready && (
-        <div class="ready-overlay">
-          <div class="ready-card">
-            <h2 class="ready-title">Get ready</h2>
-            <p class="muted">
-              {game.letters.length} letters · seeds are{" "}
-              {seedLengthText(game.shortestSeedLength, game.longestSeedLength)}
-            </p>
-            <div class="ready-count">{Math.max(1, Math.ceil(readyMs / 1000))}</div>
-            <button type="button" class="btn btn--primary btn--block" onClick={this.startGame}>
-              Start
-            </button>
-            <p class="muted ready-hint">or press Enter</p>
-          </div>
-        </div>
-      )}
-      </>
     );
   }
 }

@@ -112,14 +112,10 @@ export class AuthScreen extends Component<{}, State> {
             </label>
             <label class="field">
               <span class="field__label">Password</span>
-              {/*
-                NOTE: unmasked (type="text") for now to debug input capture.
-                Restore to type="password" before shipping.
-              */}
               <input
                 class="field__input"
                 name="password"
-                type="text"
+                type="password"
                 value={password}
                 autoComplete={isRegister ? "new-password" : "current-password"}
                 onInput={(event) =>

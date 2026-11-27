@@ -19,7 +19,6 @@ export interface PlayRow {
   words_json: string;
   score: number;
   words_found: number;
-  duration_ms: number;
   finished_at: number;
 }
 
@@ -86,43 +85,20 @@ export function getPlay(
 }
 
 /**
- * Record the single allowed submission for today's game. Returns false if a row
- * already existed (so the caller can return the stored result idempotently).
+ * Insert or overwrite a player's run for a game. Words only ever accumulate, so
+ * a later save is always a superset — there is no "best score" comparison to do.
  */
-export async function insertPlayToday(db: D1Database, play: PlayRow): Promise<boolean> {
-  const result = await db
-    .prepare(
-      `INSERT OR IGNORE INTO plays
-         (user_id, game_id, words_json, score, words_found, duration_ms, finished_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    )
-    .bind(
-      play.user_id,
-      play.game_id,
-      play.words_json,
-      play.score,
-      play.words_found,
-      play.duration_ms,
-      play.finished_at,
-    )
-    .run();
-  return (result.meta?.changes ?? 0) > 0;
-}
-
-/** Store a replay only if it beats the existing best score. */
-export async function upsertBestPlay(db: D1Database, play: PlayRow): Promise<void> {
+export async function upsertPlay(db: D1Database, play: PlayRow): Promise<void> {
   await db
     .prepare(
       `INSERT INTO plays
          (user_id, game_id, words_json, score, words_found, duration_ms, finished_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, 0, ?)
        ON CONFLICT(user_id, game_id) DO UPDATE SET
          words_json = excluded.words_json,
          score = excluded.score,
          words_found = excluded.words_found,
-         duration_ms = excluded.duration_ms,
-         finished_at = excluded.finished_at
-       WHERE excluded.score > plays.score`,
+         finished_at = excluded.finished_at`,
     )
     .bind(
       play.user_id,
@@ -130,33 +106,25 @@ export async function upsertBestPlay(db: D1Database, play: PlayRow): Promise<voi
       play.words_json,
       play.score,
       play.words_found,
-      play.duration_ms,
       play.finished_at,
     )
     .run();
 }
 
-export interface RunRow extends PlayRow {
-  username: string;
-}
-
-export async function topRuns(
-  db: D1Database,
-  gameId: string,
-  limit: number,
-  excludeUserId: string | null,
-): Promise<RunRow[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT p.*, u.username AS username
-       FROM plays p JOIN users u ON u.id = p.user_id
-       WHERE p.game_id = ? AND p.user_id != ?
-       ORDER BY p.score DESC, p.finished_at ASC
-       LIMIT ?`,
-    )
-    .bind(gameId, excludeUserId ?? "", limit)
-    .all<RunRow>();
-  return results;
+/**
+ * The words in a stored run. Tolerates the old timeline shape
+ * (`[{word,t}]`) as well as the current plain `["stone", …]`.
+ */
+export function wordsOf(row: { words_json: string }): string[] {
+  const raw = JSON.parse(row.words_json) as unknown[];
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry === "string") out.push(entry);
+    else if (entry && typeof (entry as { word?: unknown }).word === "string") {
+      out.push((entry as { word: string }).word);
+    }
+  }
+  return out;
 }
 
 export interface LeaderboardDbRow {

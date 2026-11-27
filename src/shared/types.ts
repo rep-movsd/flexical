@@ -4,9 +4,8 @@
 
 import type { AnswerCount } from "./engine/answers";
 import type { BadgeKind, BadgeWords, Badges } from "./engine/badges";
-import type { GhostWord, TimelineEntry } from "./engine/timeline";
 
-export type { AnswerCount, BadgeKind, BadgeWords, Badges, GhostWord, TimelineEntry };
+export type { AnswerCount, BadgeKind, BadgeWords, Badges };
 
 /** A user as exposed over the API (never includes password material). */
 export interface PublicUser {
@@ -28,14 +27,14 @@ export interface GameView {
   counts: AnswerCount[];
 }
 
-/** The current player's state for a game. */
+/** The current player's state for a game. Words keep their find order. */
 export interface MeView {
   played: boolean;
   revealed: boolean;
   locked: boolean;
+  score: number;
   bestScore: number;
   words: string[];
-  timeline: TimelineEntry[];
   badges: Badges;
   badgeWords: BadgeWords;
 }
@@ -45,28 +44,18 @@ export interface GameResponse {
   me: MeView | null;
 }
 
-/** A replayed top run, shown in race mode without revealing words. */
-export interface Ghost {
-  username: string;
-  score: number;
-  wordsFound: number;
-  badges: Badges;
-  timeline: GhostWord[];
-}
-
-export interface RaceResponse {
-  ghosts: Ghost[];
-}
-
-export interface SubmitResult {
+/** Result of auto-saving the player's word set for a game. */
+export interface SaveResult {
   accepted: string[];
   rejected: { word: string; reason: string }[];
   score: number;
   badges: Badges;
   badgeWords: BadgeWords;
-  bestScore: number;
   words: string[];
+  bestScore: number;
   locked: boolean;
+  /** True when the words were written to the player's saved run. */
+  persisted: boolean;
 }
 
 export interface ArchiveGame {

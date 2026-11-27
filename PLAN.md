@@ -3,6 +3,11 @@
 Companion to `game.md` (the behavioural spec). This file describes how the app
 is built. See `game.md` for the rules themselves.
 
+> **Historical.** This plan describes an earlier design (a timed daily game with
+> one-shot submissions, ghost races and per-word timestamps). The app has since
+> been simplified — see `README.md` and `context.md` for the current shape. Kept
+> for reference.
+
 ## Decisions
 
 - One Cloudflare Worker serves the SPA + API; D1 for storage (single deploy).

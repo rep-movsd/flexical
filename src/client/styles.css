@@ -1,6 +1,6 @@
 /* Flexical — single hand-written stylesheet.
-   Mobile-first; the desktop layout kicks in at >=1024px. The game board is a
-   three-pane flex row (flex-grow 20 / 60 / 20) that stacks on small screens. */
+   Mobile-first; the desktop board is a single centered column at 75% width that
+   goes full width on smaller screens. */
 :root {
   --bg: #12121c;
   --bg-elev: #1b1b2f;
@@ -16,7 +16,6 @@
   --radius: 14px;
   --radius-sm: 10px;
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  --tabbar-h: 60px;
   --font: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -67,13 +66,22 @@ h3 {
 
 .shell {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-.shell--mobile .content {
-  padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
+/* The game screen fills exactly one viewport; its inner panel scrolls instead
+   of the page, so the found words panel can "fit the height". */
+.shell--game {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .content {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
   max-width: 1080px;
   margin: 0 auto;
   padding: 20px 16px;
@@ -82,6 +90,8 @@ h3 {
 /* The game board spans the full screen width. */
 .content--wide {
   max-width: none;
+  display: flex;
+  flex-direction: column;
 }
 
 .topbar {
@@ -110,53 +120,32 @@ h3 {
   margin-left: auto;
 }
 
-.topbar__account {
+/* Nav items are icon buttons, right-aligned in the bar. */
+.navicon {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
   color: var(--fg-muted);
-  font-size: 0.9rem;
 }
 
-.navlink {
-  padding: 6px 12px;
-  border-radius: 999px;
-  color: var(--fg-muted);
+.navicon svg {
+  display: block;
 }
 
-.navlink--active {
-  color: var(--fg);
+/* Inline Font Awesome glyphs render as blocks and inherit the text color. */
+.icon {
+  display: block;
+}
+
+.navicon--active {
+  color: var(--accent);
   background: var(--bg-elev-2);
 }
 
-.tabbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 10;
-  display: flex;
-  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
-  padding-bottom: env(safe-area-inset-bottom, 0px);
-  background: rgba(27, 27, 47, 0.95);
-  backdrop-filter: blur(12px);
-  border-top: 1px solid var(--border);
-}
-
-.tab {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  color: var(--fg-muted);
-  font-size: 0.72rem;
-}
-
-.tab--active {
-  color: var(--accent);
-}
-
-.tab__icon {
-  font-size: 1.15rem;
+.navicon--account {
+  margin-left: 10px;
 }
 
 /* ---------- Panels & pages ---------- */
@@ -210,92 +199,27 @@ h3 {
   color: #cfc4ff;
 }
 
-/* ---------- Get-ready overlay ---------- */
-
-.board-frame--blurred {
-  filter: blur(12px);
-  pointer-events: none;
-  user-select: none;
-}
-
-.ready-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(18, 18, 28, 0.55);
-  backdrop-filter: blur(2px);
-}
-
-.ready-card {
-  width: min(360px, 92vw);
-  display: grid;
-  gap: 14px;
-  justify-items: center;
-  text-align: center;
-  padding: 28px;
-  background: var(--bg-elev);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-}
-
-.ready-title {
-  font-size: 1.4rem;
-}
-
-.ready-count {
-  font-size: 4.5rem;
-  font-weight: 800;
-  line-height: 1;
-  color: var(--accent);
-  font-variant-numeric: tabular-nums;
-}
-
-.ready-card .btn {
-  width: 100%;
-}
-
-.ready-hint {
-  font-size: 0.85rem;
-  margin: 0;
-}
-
-/* ---------- Game layout ---------- */
-
-/* ---------- Game layout: three vertical panes (flex) ---------- */
+/* ---------- Game layout: one centered column ---------- */
 
 .board-frame {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   width: 100%;
-  gap: 16px;
-  align-items: flex-start;
+  justify-content: center;
+  align-items: stretch;
 }
 
-.pane {
-  box-sizing: border-box;
-  min-width: 0;
-}
-
-.pane--left {
-  flex: 20 1 0;
-  min-height: 1px;
-}
-
+/* The board itself: a centered pane, 75% wide on desktop (full width below).
+   Rows: the word box (auto) then the found words panel (fills the rest). */
 .pane--mid {
-  flex: 60 1 0;
+  box-sizing: border-box;
+  flex: 0 0 75%;
+  min-width: 0;
+  min-height: 0;
   display: grid;
+  grid-template-rows: auto 1fr;
   gap: 16px;
-}
-
-.pane--right {
-  flex: 20 1 0;
-  display: grid;
-  gap: 16px;
-  position: sticky;
-  top: 84px;
 }
 
 .game__head {
@@ -303,17 +227,6 @@ h3 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-}
-
-.timer {
-  font-variant-numeric: tabular-nums;
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: var(--accent-2);
-}
-
-.timer--paused {
-  color: var(--fg-muted);
 }
 
 /* The allowed letters, as pressable keys. */
@@ -448,107 +361,6 @@ h3 {
   color: var(--danger);
 }
 
-.flash__hint {
-  font-weight: 400;
-  opacity: 0.75;
-}
-
-.result {
-  margin-top: 16px;
-  padding: 14px;
-  border-radius: var(--radius-sm);
-  background: var(--bg-elev-2);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.result__score {
-  margin: 0;
-  font-size: 1.1rem;
-}
-
-/* ---------- Score ---------- */
-
-.score__row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.score__value {
-  font-size: 2.4rem;
-  font-weight: 800;
-}
-
-.score__label {
-  color: var(--fg-muted);
-}
-
-/* ---------- Race panel ---------- */
-
-.race .lanes {
-  list-style: none;
-  margin: 12px 0 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.lane__head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 0.9rem;
-  margin-bottom: 4px;
-}
-
-.lane__name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.lane__score {
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-}
-
-.lane__track {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.lane__track .badges {
-  flex: 0 0 auto;
-}
-
-.lane__bar {
-  flex: 1;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--bg-elev-2);
-  overflow: hidden;
-}
-
-.lane__fill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), #a58bff);
-  transition: width 0.2s linear;
-}
-
-.lane__fill--self {
-  background: linear-gradient(90deg, var(--accent-2), #6ff0c9);
-}
-
-.lane--self .lane__name {
-  color: var(--accent-2);
-}
-
 /* ---------- Badges ---------- */
 
 .badges {
@@ -571,19 +383,72 @@ h3 {
   font-variant-emoji: emoji;
 }
 
-.score__actions {
-  display: grid;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-/* ---------- Found words (one lane per length) ---------- */
+/* ---------- Found words panel ---------- */
 
 .found {
   margin-top: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.found__head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.found__stats {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.found__points {
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.found__views {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.iconbtn {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev-2);
+  color: var(--fg-muted);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.iconbtn--active {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+/* View A: chronological word log — compact font, plain default flow. */
+.found__log {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 
 .found__lanes {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
   display: grid;
   gap: 6px;
   margin-top: 10px;
@@ -655,13 +520,6 @@ h3 {
 .chip__pts {
   color: var(--accent-2);
   font-size: 0.72rem;
-}
-
-.score__badges {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
 }
 
 /* ---------- Forms ---------- */
@@ -844,21 +702,106 @@ h3 {
 /* ---------- Responsive: stack the panes on small screens ---------- */
 
 @media (max-width: 1023px) {
+  .pane--mid {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---------- Compact phone layout: one tight vertical column ---------- */
+
+/* On phones the desktop panes are flattened so their panels become
+   direct rows of a single column: word box → found words panel. */
+@media (max-width: 640px) {
+  .content {
+    padding: 10px;
+  }
+
   .board-frame {
     flex-direction: column;
     align-items: stretch;
+    gap: 10px;
   }
 
-  .pane--left {
-    display: none;
+  /* Flatten the panes: their children stack directly in .board-frame. */
+  .pane--mid {
+    display: contents;
   }
 
-  .pane--mid,
-  .pane--right {
+  .game__main {
+    order: 1;
+    flex: 0 0 auto;
+  }
+
+  .found {
+    order: 3;
     flex: 1 1 auto;
+    min-height: 0;
   }
 
-  .pane--right {
-    position: static;
+  .panel {
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: none;
+  }
+
+  .title {
+    font-size: 1.15rem;
+  }
+
+  .game__head {
+    gap: 10px;
+  }
+
+  .panel__title {
+    font-size: 0.95rem;
+  }
+
+  .keys {
+    flex-wrap: nowrap;
+    gap: 5px;
+    margin: 8px 0;
+  }
+
+  /* Let the tiles share one row: 10 (the max distinct letters) always fit. */
+  .key {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+    max-width: 34px;
+    height: 36px;
+    padding: 0;
+    font-size: 0.95rem;
+  }
+
+  .entry__input {
+    padding: 10px 12px;
+    font-size: 1rem;
+  }
+
+  /* Collapse the message slot when empty so the word box wastes no space. */
+  .flash-slot {
+    min-height: 0;
+    margin-top: 6px;
+  }
+
+  .flash-slot:empty {
+    margin-top: 0;
+  }
+
+  .found__lane {
+    gap: 8px;
+    padding: 6px 0;
+  }
+
+  .chip {
+    padding: 3px 8px;
+    font-size: 0.8rem;
+  }
+
+  /* Leaderboard/archive tables: tighter cells so they fit a phone. */
+  .board th,
+  .board td {
+    padding: 8px;
+    font-size: 0.85rem;
   }
 }

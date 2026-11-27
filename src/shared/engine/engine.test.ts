@@ -5,7 +5,6 @@ import { createDictionary } from "./dictionary";
 import { allowedLetters, isBuildable, toLetterSet } from "./letters";
 import { computeK, pointsForLength, scoreWords } from "./scoring";
 import { pickSeed, seedCandidates } from "./seeds";
-import { progressAt, type GhostWord } from "./timeline";
 import { classifyWords } from "./validation";
 
 // Contracts for the game engine. These describe the rules in game.md and should
@@ -112,13 +111,7 @@ describe("classifyWords", () => {
 
   it("accepts valid words and rejects others with reasons", () => {
     const result = classifyWords(
-      [
-        { word: "stone" },
-        { word: "STONE" },
-        { word: "apple" },
-        { word: "sea" },
-        { word: "zzzz" },
-      ],
+      ["stone", "STONE", "apple", "sea", "zzzz"],
       allowed,
       dict,
       k,
@@ -134,7 +127,7 @@ describe("classifyWords", () => {
   });
 
   it("reports unknown for a buildable non-word", () => {
-    const result = classifyWords([{ word: "tennet" }], allowed, dict, k);
+    const result = classifyWords(["tennet"], allowed, dict, k);
     expect(result.rejected).toEqual([{ word: "tennet", reason: "unknown" }]);
   });
 });
@@ -164,21 +157,6 @@ describe("seeds", () => {
 
   it("finds 8–10 letter candidates", () => {
     expect(seedCandidates(dict).every((w) => w.length >= 8 && w.length <= 10)).toBe(true);
-  });
-});
-
-describe("ghost timeline", () => {
-  const timeline: GhostWord[] = [
-    { len: 4, points: 7, t: 1000, marks: [] },
-    { len: 5, points: 8, t: 3000, marks: [] },
-    { len: 8, points: 14, t: 5000, marks: ["star"] },
-  ];
-
-  it("accumulates as time passes", () => {
-    expect(progressAt(timeline, 0)).toEqual({ score: 0, count: 0 });
-    expect(progressAt(timeline, 1000)).toEqual({ score: 7, count: 1 });
-    expect(progressAt(timeline, 4000)).toEqual({ score: 15, count: 2 });
-    expect(progressAt(timeline, 9999)).toEqual({ score: 29, count: 3 });
   });
 });
 

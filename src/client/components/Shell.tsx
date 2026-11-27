@@ -1,40 +1,62 @@
 import { Component, type ComponentChildren } from "preact";
 import { AppContext, type AppContextValue } from "../context";
+import { Icon, type IconName } from "./icons";
 
 interface NavItem {
   href: string;
   label: string;
-  icon: string;
+  icon: IconName;
 }
 
 const ITEMS: NavItem[] = [
-  { href: "/", label: "Play", icon: "▦" },
-  { href: "/archive", label: "Archive", icon: "▤" },
-  { href: "/alltime", label: "Marathon", icon: "★" },
+  { href: "/", label: "Play", icon: "play" },
+  { href: "/archive", label: "Archive", icon: "archive" },
+  { href: "/alltime", label: "Marathon", icon: "marathon" },
 ];
 
 /**
- * App frame. Renders a different navigation view for mobile (bottom tab bar)
- * and desktop (top bar), switching on store.isMobile.
+ * App frame. A single sticky top bar for every viewport: the brand on the left,
+ * the nav items and account control as icons on the right.
  */
 export class Shell extends Component<{ children?: ComponentChildren }> {
   static contextType = AppContext;
 
   render() {
     const ctx = this.context as AppContextValue | null;
-    const isMobile = ctx?.store.isMobile ?? false;
     const path = ctx?.store.path ?? "/";
     const session = ctx?.store.session ?? null;
     // The game board uses the full screen width; other pages stay narrow.
     const wide = path === "/" || path.startsWith("/play");
+    const accountLabel = session?.username ?? "Sign in";
 
     return (
-      <div class={isMobile ? "shell shell--mobile" : "shell shell--desktop"}>
-        {isMobile ? (
-          <MobileNav path={path} />
-        ) : (
-          <DesktopNav path={path} username={session?.username ?? null} />
-        )}
+      <div class={wide ? "shell shell--game" : "shell"}>
+        <header class="topbar">
+          <a href="/" class="brand">
+            Flexical
+          </a>
+          <nav class="topbar__links" aria-label="Main">
+            {ITEMS.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                class={isActive(path, item.href) ? "navicon navicon--active" : "navicon"}
+                title={item.label}
+                aria-label={item.label}
+              >
+                <Icon name={item.icon} />
+              </a>
+            ))}
+            <a
+              href={session ? "/profile" : "/signin"}
+              class="navicon navicon--account"
+              title={accountLabel}
+              aria-label={accountLabel}
+            >
+              <Icon name="account" />
+            </a>
+          </nav>
+        </header>
         <main class={wide ? "content content--wide" : "content"}>{this.props.children}</main>
       </div>
     );
@@ -43,52 +65,4 @@ export class Shell extends Component<{ children?: ComponentChildren }> {
 
 function isActive(path: string, href: string): boolean {
   return href === "/" ? path === "/" : path.startsWith(href);
-}
-
-class DesktopNav extends Component<{ path: string; username: string | null }> {
-  render() {
-    const { path, username } = this.props;
-    return (
-      <header class="topbar">
-        <a href="/" class="brand">
-          Flexical
-        </a>
-        <nav class="topbar__links">
-          {ITEMS.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              class={isActive(path, item.href) ? "navlink navlink--active" : "navlink"}
-            >
-              {item.label}
-            </a>
-          ))}
-        </nav>
-        <a href={username ? "/profile" : "/signin"} class="topbar__account">
-          {username ?? "Sign in"}
-        </a>
-      </header>
-    );
-  }
-}
-
-class MobileNav extends Component<{ path: string }> {
-  render() {
-    return (
-      <nav class="tabbar">
-        {ITEMS.map((item) => (
-          <a
-            key={item.href}
-            href={item.href}
-            class={isActive(this.props.path, item.href) ? "tab tab--active" : "tab"}
-          >
-            <span class="tab__icon" aria-hidden="true">
-              {item.icon}
-            </span>
-            <span class="tab__label">{item.label}</span>
-          </a>
-        ))}
-      </nav>
-    );
-  }
 }

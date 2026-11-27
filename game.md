@@ -6,27 +6,26 @@
 
 ## Overview
 
-Flexical is a daily word-finding game. Each day is built from a **pair of long
-seed words**. From the letters those words contain, players find as many valid
+Flexical is a daily word-finding game. Each day is built from a hidden **seed
+word** of 8–10 letters. From the letters it contains, players find as many valid
 words as they can. You are not racing a pool of tiles — you are given a set of
 **allowed letters** and may reuse them freely.
 
-It is solo, asynchronous and competitive: you build a word list in one sitting,
-submit it, and see how your score compares on that day's leaderboard. Past games
-stay playable forever, so a dedicated player can keep grinding old boards to
-climb an all-time "marathon" ranking.
+It is solo, asynchronous and **untimed**. There is no clock and no race: you build
+a word list at your own pace, and it is saved as you go. A game never closes — keep
+adding words until you have found them all. Revealing another player's words locks
+that game for you, while past games stay playable forever, so a dedicated player
+can keep grinding old boards to climb an all-time "marathon" ranking.
 
 ## Glossary
 
 | Term | Meaning |
 |---|---|
-| **Game** | One day's puzzle, defined by a seed word. Identified by its UTC date. |
-| **Seed words** | A single English word of 8–10 letters. Hidden from players. |
-| **Allowed letters** | The set of distinct letters appearing in either seed word. |
-| **Attempt** | One run at a game: a word list the player assembles and submits. |
-| **Run / Play** | The recorded result of one attempt (words, timestamps, score, badges). |
+| **Game** | One day's puzzle, defined by a seed word. Identified by its date. |
+| **Seed word** | A single English word of 8–10 letters. Hidden from players. |
+| **Allowed letters** | The set of distinct letters appearing in the seed word. |
+| **Run / Play** | A player's record for a game: every word they have found so far. It only ever grows. |
 | **Reveal** | Looking at another player's words, which permanently locks the game for you. |
-| **Ghost** | A replay of a top player's run, shown during your attempt in race mode. |
 
 ## The puzzle
 
@@ -39,18 +38,16 @@ climb an all-time "marathon" ranking.
   you are permitted to press, not a finite rack.
 - The server **precomputes how many answers exist per word length**; each
   found-words lane shows `found / total`.
-- The seed word is **never shown**. Its **length** is shown as a target (8–10
-  letters) — see Scoring and Badges.
+- The seed word is **never shown**.
 
 ### Seed selection
 
 - Candidates are dictionary words of 8–10 letters.
-- A pair is chosen **deterministically from the UTC date**, so every player gets
+- The seed is chosen **deterministically from the date**, so every player gets
   the same game on the same day, and the game can be regenerated from the date.
-- The two words are **distinct**. Recently used seeds are avoided so games do
-  not repeat for a long time.
-- Additional tuning (e.g. requiring the pair to expose enough vowels, or not to
-  share too many letters) may be added later; it is not required by the rules.
+- Recently used seeds are avoided so games do not repeat for a long time.
+- Additional tuning (e.g. requiring enough vowels, or an interesting letter set)
+  may be added later; it is not required by the rules.
 
 ## Playing a word
 
@@ -113,10 +110,9 @@ rounded to whole numbers.
 
 Notes:
 
-- A word **longer** than both seeds is possible (letters repeat), and scores more
+- A word **longer** than the seed is possible (letters repeat), and scores more
   than `2L`. Nothing special happens except the star badge (below).
-- The player's score for a game is the sum of the points of the accepted words in
-  their best run.
+- The player's score for a game is the sum of the points of the words in their run.
 
 ## Badges
 
@@ -130,82 +126,63 @@ without revealing any words.
 | ⭐ **Star** | The run contains a **non-seed word at least as long as the seed**. |
 
 Badges are computed by the server (it knows the seed). The client shows them on
-submitted results and on leaderboard rows.
+found words and on leaderboard rows.
 
-## Daily rhythm and replays
+## Playing a game
 
-- There is **one game per UTC day**.
-- **Today's game:** a player may **submit exactly once**. After that submission
-  the game is locked for them for the rest of the day; they cannot add words or
-  resubmit today.
-- **Past games:** every previous game remains playable. A player may replay a
-  past game **any number of times**; the game keeps their **best score**.
-- The intent is a marathon: the daily single shot is the headline moment, while
-  past boards can be ground repeatedly to push an all-time total.
+- There is **one game per day** (per the viewer's local timezone).
+- **A game stays open forever.** There is no clock and no single-shot submission;
+  you can add words at any time, as often as you like, until you have found every
+  answer.
+- **Your words auto-save** as you find them (signed-in players). Revisit a game
+  later and continue where you left off; your run is simply the set of every word
+  you have found for it.
+- **The only lock is the reveal:** looking at another player's words permanently
+  locks that game for you (see below).
+- The intent is a marathon: grind any boards you like to push an all-time total.
 
 ## Leaderboards
 
 - **Per-game leaderboard:** every game (today's and each past day) has its own
   leaderboard, ranked by score, showing **points only** plus badge icons.
-- **All-time board:** ranks players by the **sum of their best score on every
-  game they have played** ("marathon" total). A player's best on a game is the
-  highest-scoring run they have recorded for it.
+- **All-time board:** ranks players by the **sum of their score on every game
+  they have played** ("marathon" total).
 
 ## Reveal mechanic (spoilers)
 
 - A leaderboard row shows **only the player's points and badges** by default.
 - **Expanding a row reveals that player's words.**
-- Doing so **permanently locks that game for you**: you can no longer submit a
-  run for it, now or on any future replay. The lock applies to the current day's
-  game and to every past game alike.
+- Doing so **permanently locks that game for you**: you can no longer add words
+  to it, now or on any future visit. The lock applies to the current day's game
+  and to every past game alike.
 - This means a player must choose: play blind and keep competing, or peek and
   forfeit that board. Badges are shown *without* expanding, so you can read the
   leaderboard for achievement signals without spoiling the words.
 
-## Race mode (ghost racing)
-
-Race mode gives the feeling of playing alongside the best, without spoiling
-anything.
-
-- When a player starts an attempt, the **top 5 runs for that same game** (by
-  score, excluding the player's own run) are replayed as **ghosts** starting at
-  the player's `t = 0`.
-- Ghosts use their **real recorded timing**: each run is stored with a timestamp
-  for every word, so the ghost's score climbs at the same pace it actually did.
-- Ghosts show **progress only** — cumulative **score and word count**, plus
-  word-*length* pings ("found a 7-letter word") — and **never the words**. This
-  keeps race mode free of spoilers, so it does **not** trigger the reveal lock.
-- Each ghost lane shows the player's **username and badges**.
-- If fewer than five runs exist, only those are shown. If none exist, the game
-  shows a placeholder ("No ghosts yet — set the pace").
-- Because runs are stored, race mode is always a **replay**, not a live match
-  against concurrent players.
-
 ## Accounts
 
-- An account (username + password) is required to **submit a run** and appear on
-  leaderboards; it is what makes scores, bests and locks persist.
-- Browsing is open to anonymous visitors, but a run cannot be recorded without
-  signing in.
+- An account (username + password) is required to **save your words** and appear
+  on leaderboards; it is what makes your found words and locks persist.
+- Browsing and playing are open to anonymous visitors, but nothing is recorded
+  without signing in (anonymous progress is local to the tab and lost on reload).
 - The reveal lock is stored per account and per game.
 
 ## Rules summary
 
-1. One game per UTC day, from a hidden single seed word of 8–10 letters.
+1. One game per day, from a hidden single seed word of 8–10 letters.
 2. You get the distinct letters of the seed; reuse them freely.
 3. A word scores if it is ≥ 4 letters, uses only allowed letters, and is in the
    dictionary.
 4. `points(n) = round(n + K^n)`, `K = L^(1/L)`; the seed word scores `2L`.
 5. Badges: ☀ the seed word, ⭐ a non-seed word ≥ the seed length. (🌙 disabled.)
-6. Today: one submission. Past games: unlimited replays, best score kept.
+6. No clock and no race. A game is open forever; your words auto-save as you find
+   them, and there is nothing to submit.
 7. Per-game boards (points + badges) and an all-time marathon board.
 8. Expanding anyone's words reveals them and permanently locks that game for you.
-9. Race the top 5 runs as spoiler-free, accurately-timed ghosts.
 
 ## Open questions
 
 - Seed-selection tuning (vowel coverage, letter-set interest) — optional polish.
-- Whether the all-time board should weight by number of games played or count an
-  incomplete day differently.
-- Whether the client's locally-recorded timestamps need server-side sanity
-  limits (they are advisory; the score is what is ranked).
+- Whether the all-time board should weight by number of games played.
+- Scaling of the all-time board and the save write-rate as the player base grows
+  (batch saves; materialize totals).

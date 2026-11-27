@@ -15,9 +15,6 @@ export class Store {
   /** Current route path, kept in sync by <Router onChange>. */
   path = typeof window !== "undefined" ? window.location.pathname : "/";
 
-  /** True on narrow viewports; drives which navigation view renders. */
-  isMobile = typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
-
   private listeners = new Set<Listener>();
 
   subscribe(listener: Listener): () => void {
@@ -37,13 +34,6 @@ export class Store {
   setBooted(value: boolean): void {
     this.booted = value;
     this.emit();
-  }
-
-  setMobile(value: boolean): void {
-    if (value !== this.isMobile) {
-      this.isMobile = value;
-      this.emit();
-    }
   }
 
   setPath(path: string): void {

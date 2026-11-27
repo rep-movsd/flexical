@@ -10,12 +10,6 @@ import { MIN_WORD_LENGTH, pointsForLength } from "./scoring";
 
 export type RejectReason = "too_short" | "duplicate" | "not_in_rack" | "unknown";
 
-export interface WordInput {
-  word: string;
-  /** Milliseconds since the attempt started. Advisory; used for ghosts. */
-  t?: number;
-}
-
 export interface ClassifyResult {
   accepted: string[];
   rejected: { word: string; reason: RejectReason }[];
@@ -23,7 +17,7 @@ export interface ClassifyResult {
 }
 
 export function classifyWords(
-  submitted: WordInput[],
+  submitted: string[],
   allowed: LetterSet,
   dict: Dictionary,
   k: number,
@@ -33,8 +27,8 @@ export function classifyWords(
   const rejected: ClassifyResult["rejected"] = [];
   let score = 0;
 
-  for (const entry of submitted) {
-    const word = normalizeWord(entry?.word ?? "");
+  for (const raw of submitted) {
+    const word = normalizeWord(raw ?? "");
     if (!word) continue;
 
     if (word.length < MIN_WORD_LENGTH) {

@@ -21,16 +21,9 @@ export class App extends Component {
   private readonly store = new Store();
 
   private unsubscribe?: () => void;
-  private mediaQuery?: MediaQueryList;
-  private onMediaChange = (event: MediaQueryListEvent): void => {
-    this.store.setMobile(event.matches);
-  };
 
   componentDidMount(): void {
     this.unsubscribe = this.store.subscribe(() => this.setState({}));
-
-    this.mediaQuery = window.matchMedia("(max-width: 640px)");
-    this.mediaQuery.addEventListener("change", this.onMediaChange);
 
     this.api
       .getSession()
@@ -41,7 +34,6 @@ export class App extends Component {
 
   componentWillUnmount(): void {
     this.unsubscribe?.();
-    this.mediaQuery?.removeEventListener("change", this.onMediaChange);
   }
 
   render() {
