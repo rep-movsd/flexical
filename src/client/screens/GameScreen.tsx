@@ -223,7 +223,8 @@ export class GameScreen extends Component<Props, State> {
       this.timestamps = new Map();
       const locked = me?.locked ?? false;
       const played = me?.played ?? false;
-      const showReady = !locked && !played;
+      // Always lead into a playable game with the get-ready overlay.
+      const showReady = !locked;
       this.setState({
         ...EMPTY,
         loading: false,
@@ -238,7 +239,7 @@ export class GameScreen extends Component<Props, State> {
         badgeWords,
         ready: !showReady,
         readyMs: showReady ? 5000 : 0,
-        running: !locked && !showReady,
+        running: false,
       });
     } catch (error) {
       if (!this.alive) return;
@@ -376,8 +377,7 @@ export class GameScreen extends Component<Props, State> {
   };
 
   private newAttempt = (): void => {
-    this.timestamps = new Map();
-    this.t0 = Date.now();
+    // Replayed attempts also get the get-ready overlay.
     this.setState({
       found: [],
       draft: "",
@@ -388,7 +388,9 @@ export class GameScreen extends Component<Props, State> {
       paused: false,
       pauseReason: null,
       badgeWords: EMPTY_BADGE_WORDS,
-      running: true,
+      running: false,
+      ready: false,
+      readyMs: 5000,
     });
   };
 
