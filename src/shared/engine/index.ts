@@ -7,3 +7,4 @@ export * from "./badges";
 export * from "./seeds";
 export * from "./validation";
 export * from "./timeline";
+export * from "./answers";

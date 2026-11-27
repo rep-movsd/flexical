@@ -92,6 +92,9 @@ npm run build                # emits dist/client + dist/wordtwist
   longest seed word scores `2L`.
 - Badges: ☀ found seed A, 🌙 found seed B, ⭐ a non-seed word at least as long as
   the shorter seed.
+- The server **precomputes how many answers exist per word length** when a game
+  is created (and backfills older games on first fetch); each found-words lane
+  shows `found / total`.
 - **Today's game** allows **one submission**. **Past games** can be replayed
   without limit, keeping your best score. Each game has a leaderboard; the
   all-time "marathon" board sums your best score on every game.

@@ -2,10 +2,11 @@
 // browser- or Worker-specific types. Domain types that the engine already owns
 // (badges, timeline) are re-exported rather than duplicated.
 
+import type { AnswerCount } from "./engine/answers";
 import type { BadgeKind, BadgeWords, Badges } from "./engine/badges";
 import type { GhostWord, TimelineEntry } from "./engine/timeline";
 
-export type { BadgeKind, BadgeWords, Badges, GhostWord, TimelineEntry };
+export type { AnswerCount, BadgeKind, BadgeWords, Badges, GhostWord, TimelineEntry };
 
 /** A user as exposed over the API (never includes password material). */
 export interface PublicUser {
@@ -23,6 +24,8 @@ export interface GameView {
   shortestSeedLength: number;
   /** Scoring constant K derived from longestSeedLength. */
   k: number;
+  /** Precomputed number of valid answers per word length. */
+  counts: AnswerCount[];
 }
 
 /** The current player's state for a game. */

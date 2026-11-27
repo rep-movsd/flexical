@@ -564,6 +564,14 @@ h3 {
   padding-top: 2px;
 }
 
+.found__lane-count {
+  margin-left: auto;
+  padding-top: 4px;
+  color: var(--fg-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

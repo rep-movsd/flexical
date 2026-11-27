@@ -1,5 +1,5 @@
 import { Component } from "preact";
-import type { BadgeKind } from "../../shared/types";
+import type { AnswerCount, BadgeKind } from "../../shared/types";
 import { BadgeIcon } from "./BadgeIcons";
 
 export interface FoundWord {
@@ -15,12 +15,17 @@ interface Props {
   maxLength: number;
   /** Lowest word length that scores. */
   minLength: number;
+  /** Precomputed number of possible answers per length. */
+  counts: AnswerCount[];
 }
 
 /** One lane per word length, each holding the words found at that length. */
 export class FoundWords extends Component<Props> {
   render() {
-    const { words, maxLength, minLength } = this.props;
+    const { words, maxLength, minLength, counts } = this.props;
+
+    const totals = new Map<number, number>();
+    for (const entry of counts) totals.set(entry.length, entry.count);
 
     const byLength = new Map<number, FoundWord[]>();
     for (const entry of words) {
@@ -32,7 +37,7 @@ export class FoundWords extends Component<Props> {
       bucket.sort((a, b) => a.word.localeCompare(b.word));
     }
 
-    const highest = Math.max(maxLength, ...words.map((w) => w.word.length));
+    const highest = Math.max(maxLength, ...counts.map((c) => c.length), ...words.map((w) => w.word.length));
     const lengths: number[] = [];
     for (let n = minLength; n <= highest; n++) lengths.push(n);
 
@@ -44,6 +49,7 @@ export class FoundWords extends Component<Props> {
         <div class="found__lanes">
           {lengths.map((length) => {
             const bucket = byLength.get(length) ?? [];
+            const total = totals.get(length);
             return (
               <div class="found__lane" key={length}>
                 <span class="found__lane-len">{length}</span>
@@ -62,6 +68,11 @@ export class FoundWords extends Component<Props> {
                     ))
                   )}
                 </span>
+                {total !== undefined && (
+                  <span class="found__lane-count" title={`${bucket.length} of ${total} found`}>
+                    {bucket.length}/{total}
+                  </span>
+                )}
               </div>
             );
           })}

@@ -9,6 +9,7 @@ export interface GameRow {
   letters: string;
   longest_seed_length: number;
   shortest_seed_length: number;
+  answer_counts_json: string;
   created_at: number;
 }
 
@@ -30,8 +31,8 @@ export async function insertGame(db: D1Database, row: GameRow): Promise<void> {
   await db
     .prepare(
       `INSERT OR IGNORE INTO games
-         (id, date, seed_a, seed_b, letters, longest_seed_length, shortest_seed_length, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, date, seed_a, seed_b, letters, longest_seed_length, shortest_seed_length, answer_counts_json, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       row.id,
@@ -41,8 +42,21 @@ export async function insertGame(db: D1Database, row: GameRow): Promise<void> {
       row.letters,
       row.longest_seed_length,
       row.shortest_seed_length,
+      row.answer_counts_json,
       row.created_at,
     )
+    .run();
+}
+
+/** Backfill the precomputed answer counts for a game. */
+export async function updateGameCounts(
+  db: D1Database,
+  id: string,
+  answerCountsJson: string,
+): Promise<void> {
+  await db
+    .prepare("UPDATE games SET answer_counts_json = ? WHERE id = ?")
+    .bind(answerCountsJson, id)
     .run();
 }
 

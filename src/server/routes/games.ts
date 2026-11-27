@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { requireUser } from "../auth/middleware";
 import { getDictionary } from "../dictionary";
-import { ensureGame } from "../games";
+import { ensureCounts, ensureGame } from "../games";
 import { localDate, parseOffset } from "../time";
 import {
   classifyWords,
@@ -51,6 +51,8 @@ function gameView(game: GameRow) {
     longestSeedLength: game.longest_seed_length,
     shortestSeedLength: game.shortest_seed_length,
     k: computeK(game.longest_seed_length),
+    /** Precomputed number of valid answers per word length. */
+    counts: JSON.parse(game.answer_counts_json || "[]") as { length: number; count: number }[],
   };
 }
 
@@ -324,8 +326,9 @@ gameRoutes.post("/:id/reveal/:username", requireUser, async (c) => {
 
 gameRoutes.get("/:id", async (c) => {
   const db = c.env.DB;
-  const game = await getGame(db, c.req.param("id"));
-  if (!game) return c.json({ error: "not_found" }, 404);
+  const found = await getGame(db, c.req.param("id"));
+  if (!found) return c.json({ error: "not_found" }, 404);
+  const game = await ensureCounts(db, found);
   const today = localDate(parseOffset(c.req.header("X-TZ-Offset")));
   return c.json({ game: gameView(game), me: await meView(db, game, c.get("user"), today) });
 });

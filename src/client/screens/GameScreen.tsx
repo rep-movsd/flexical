@@ -479,7 +479,12 @@ export class GameScreen extends Component<Props, State> {
             )}
           </section>
 
-          <FoundWords words={found} maxLength={game.longestSeedLength} minLength={MIN_WORD_LENGTH} />
+          <FoundWords
+            words={found}
+            maxLength={game.longestSeedLength}
+            minLength={MIN_WORD_LENGTH}
+            counts={game.counts}
+          />
         </div>
 
         <div class="pane pane--right">

@@ -16,7 +16,8 @@
       "binding": "DB",
       "database_name": "wordtwist",
       // Replace after `wrangler d1 create wordtwist`.
-      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID",
+      "migrations_dir": "./src/server/db/migrations"
     }
   ],
   "observability": {

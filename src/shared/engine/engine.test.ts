@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeBadgeWords, computeBadges, wordMarks } from "./badges";
+import { countAnswersByLength, totalAnswers } from "./answers";
 import { createDictionary } from "./dictionary";
 import { allowedLetters, isBuildable, toLetterSet } from "./letters";
 import { computeK, pointsForLength, scoreWords } from "./scoring";
@@ -176,5 +177,31 @@ describe("ghost timeline", () => {
     expect(progressAt(timeline, 1000)).toEqual({ score: 7, count: 1 });
     expect(progressAt(timeline, 4000)).toEqual({ score: 15, count: 2 });
     expect(progressAt(timeline, 9999)).toEqual({ score: 29, count: 3 });
+  });
+});
+
+describe("answer counts", () => {
+  const dict = createDictionary(["stone", "tenet", "strainer", "star", "apple", "cat"]);
+  const allowed = toLetterSet(allowedLetters("MOUNTAIN", "TRAINERS"));
+
+  it("counts buildable words per length", () => {
+    const counts = countAnswersByLength(allowed, dict, 4);
+    expect(counts).toEqual([
+      { length: 4, count: 1 }, // star
+      { length: 5, count: 2 }, // stone, tenet
+      { length: 8, count: 1 }, // strainer
+    ]);
+    expect(totalAnswers(counts)).toBe(4);
+  });
+
+  it("counts the seeded game's real answer set", () => {
+    // ADHIMNPRS rack: verify the count matches a direct scan.
+    const rack = toLetterSet("ADHIMNPRS");
+    const words = ["mandarin", "hardship", "randomish", "brain", "zebra", "aim"];
+    const counts = countAnswersByLength(rack, createDictionary(words), 4);
+    const expected = words.filter(
+      (w) => w.length >= 4 && [...w.toUpperCase()].every((c) => rack.has(c)),
+    ).length;
+    expect(totalAnswers(counts)).toBe(expected);
   });
 });
