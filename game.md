@@ -11,11 +11,11 @@ word** of 8–10 letters. From the letters it contains, players find as many val
 words as they can. You are not racing a pool of tiles — you are given a set of
 **allowed letters** and may reuse them freely.
 
-It is solo, asynchronous and **untimed**. There is no clock and no race: you build
-a word list at your own pace, and it is saved as you go. A game never closes — keep
-adding words until you have found them all. Revealing another player's words locks
-that game for you, while past games stay playable forever, so a dedicated player
-can keep grinding old boards to climb an all-time "marathon" ranking.
+It is solo and asynchronous. **Today's game** gives you a single **3-minute timed
+attempt** (your **hare** score); after the clock runs out — or on any past day —
+you keep playing untimed (your **tortoise** total). Your words save as you go, and a
+game never closes. Peeking at another player's words locks that game for you, so a
+dedicated player can keep grinding old boards to climb the all-time ranking.
 
 ## Glossary
 
@@ -25,7 +25,10 @@ can keep grinding old boards to climb an all-time "marathon" ranking.
 | **Seed word** | A single English word of 8–10 letters. Hidden from players. |
 | **Allowed letters** | The set of distinct letters appearing in the seed word. |
 | **Run / Play** | A player's record for a game: every word they have found so far. It only ever grows. |
-| **Reveal** | Looking at another player's words, which permanently locks the game for you. |
+| **Hare** | The timed score: the words found during today's one 3-minute attempt. |
+| **Tortoise** | The untimed total: every word found for a game, ever. |
+| **Game day** | Fixed to IST (UTC+5:30); a new game arrives at 00:00 IST. |
+| **Peek** | Looking at another player's words, which permanently locks the game for you. |
 
 ## The puzzle
 
@@ -85,11 +88,11 @@ where
 
 ```
 K = L^(1/L)
-L = length of the longer seed word
+L = length of the seed word
 ```
 
 This makes longer words worth **exponentially** more, and is calibrated so that
-**the longer seed word scores exactly `2 × L`**:
+**the seed word scores exactly `2 × L`**:
 
 ```
 points(L) = L + K^L = L + L = 2L
@@ -117,44 +120,46 @@ Notes:
 ## Badges
 
 Badges are awarded per run and shown on the leaderboard. They signal achievement
-without revealing any words.
+without spoiling any words.
 
 | Badge | Earned by |
 |---|---|
 | ☀ **Sun** | The run contains the **seed word**. |
-| 🌙 **Moon** | *Disabled while games use a single seed.* (Was: contains seed word B.) |
-| ⭐ **Star** | The run contains a **non-seed word at least as long as the seed**. |
+| ⭐ **Star** | The run contains **one or more** non-seed words at least as long as the seed. |
 
 Badges are computed by the server (it knows the seed). The client shows them on
 found words and on leaderboard rows.
 
 ## Playing a game
 
-- There is **one game per day** (per the viewer's local timezone).
-- **A game stays open forever.** There is no clock and no single-shot submission;
-  you can add words at any time, as often as you like, until you have found every
-  answer.
-- **Your words auto-save** as you find them (signed-in players). Revisit a game
-  later and continue where you left off; your run is simply the set of every word
-  you have found for it.
-- **The only lock is the reveal:** looking at another player's words permanently
-  locks that game for you (see below).
-- The intent is a marathon: grind any boards you like to push an all-time total.
+- There is **one game per day**, fixed to **IST (UTC+5:30)** — a new game arrives at
+  **00:00 IST** for everyone.
+- **Today's game: one 3-minute timed attempt.** Press **Start** to begin (you can
+  **pause** and resume). The score when the clock runs out is your **hare** score.
+  The timer runs in your browser and is stored locally.
+- **After the timer, keep playing.** Extra words don't change your hare score; they
+  count toward your **tortoise** total instead.
+- **Past games are untimed.** Revisit any past day and keep adding words for its
+  tortoise total — no clock.
+- **Your words auto-save** as you find them (signed-in players).
+- **The only lock is peeking:** looking at another player's words permanently locks
+  that game for you (see below).
 
 ## Leaderboards
 
-- **Per-game board (Archive):** pick a date (from 2026-01-01 to today) and see that
-  game's **top 10**, plus your own row if you're outside the top 10. Each row shows
-  the player, their points, the ☀/🌙 badges, and a **peek** button.
-- **All-time board (Leaderboard):** ranks players by their **total points** across
-  every game they've played, and also shows **games played** and **average points
-  per game**; the table is sortable by any of the three.
-- **Opponents:** look up a player to see every daily score they've recorded.
+- **Per-game board (Archive):** pick a date (from 2026-01-01 to today) and toggle
+  **Hares** (timed scores) or **Tortoises** (totals). Shows that game's **top 10**,
+  plus your own row if you're outside the top 10. Each row shows the player, the
+  score, the ☀ badge, and a **peek** button.
+- **All-time board (Leaderboard):** the same Hares/Tortoises toggle; ranks players by
+  their total (or summed hare scores) and shows **games played** and **average per
+  game**, sortable by each.
+- **Opponents:** look up a player to see every daily score (hare and total).
 
-## Reveal mechanic (spoilers)
+## Peek mechanic (spoilers)
 
 - A board row shows **only the player's points and badges** by default.
-- **Peeking reveals that player's words** — after a confirmation modal.
+- **Peeking shows that player's words** — after a confirmation modal.
 - Doing so **permanently locks that game for you**: you can no longer add words
   to it, now or on any future visit. The lock applies to the current day's game
   and to every past game alike.
@@ -172,7 +177,7 @@ found words and on leaderboard rows.
   on leaderboards; it is what makes your found words and locks persist.
 - Browsing and playing are open to anonymous visitors, but nothing is recorded
   without signing in (anonymous progress is local to the tab and lost on reload).
-- The reveal lock is stored per account and per game.
+- The peek lock is stored per account and per game.
 
 ## Rules summary
 
@@ -181,11 +186,12 @@ found words and on leaderboard rows.
 3. A word scores if it is ≥ 4 letters, uses only allowed letters, and is in the
    dictionary.
 4. `points(n) = round(n + K^n)`, `K = L^(1/L)`; the seed word scores `2L`.
-5. Badges: ☀ the seed word, ⭐ a non-seed word ≥ the seed length. (🌙 disabled.)
-6. No clock and no race. A game is open forever; your words auto-save as you find
-   them, and there is nothing to submit.
-7. Per-game boards (points + badges) and an all-time marathon board.
-8. Expanding anyone's words reveals them and permanently locks that game for you.
+5. Badges: ☀ the seed word, ⭐ a non-seed word ≥ the seed length.
+6. Today: one 3-minute timed attempt (your **hare** score). After it — and on any
+   past game — keep playing untimed for your **tortoise** total. A new game arrives
+   at 00:00 IST, and your words auto-save.
+7. Per-game and all-time boards, each with a **Hares / Tortoises** toggle.
+8. Peeking at anyone's words locks that game for you permanently.
 
 ## Open questions
 

@@ -102,7 +102,8 @@ export class OpponentsScreen extends Component<{}, State> {
                   <thead>
                     <tr>
                       <th>Date</th>
-                      <th class="board__num">Points</th>
+                      <th class="board__num">Hare</th>
+                      <th class="board__num">Total</th>
                       <th class="board__num">Words</th>
                       <th>Badges</th>
                     </tr>
@@ -113,6 +114,7 @@ export class OpponentsScreen extends Component<{}, State> {
                         <td>
                           <a href={`/archive/${row.date}`}>{row.date}</a>
                         </td>
+                        <td class="board__num">{row.harePlayed ? row.hareScore : "—"}</td>
                         <td class="board__num">{row.score}</td>
                         <td class="board__num">{row.wordsFound}</td>
                         <td>

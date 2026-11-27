@@ -2,6 +2,7 @@ import type {
   AllTimeRow,
   AllTimeSort,
   ApiError,
+  Board,
   GameLeaderboardResponse,
   GameResponse,
   OpponentResponse,
@@ -9,7 +10,6 @@ import type {
   PublicUser,
   SaveResult,
 } from "../shared/types";
-import { tzOffset } from "./time";
 
 export class ApiRequestError extends Error {
   constructor(
@@ -27,7 +27,7 @@ export class Api {
   constructor(private readonly base = "") {}
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const headers: Record<string, string> = { "X-TZ-Offset": String(tzOffset()) };
+    const headers: Record<string, string> = {};
     if (body !== undefined) headers["Content-Type"] = "application/json";
 
     const response = await fetch(this.base + path, {
@@ -87,16 +87,17 @@ export class Api {
     return this.request<GameResponse>("GET", `/api/games/${encodeURIComponent(id)}`);
   }
 
-  saveWords(id: string, words: string[]): Promise<SaveResult> {
+  saveWords(id: string, words: string[], hareCount?: number): Promise<SaveResult> {
     return this.request<SaveResult>("POST", `/api/games/${encodeURIComponent(id)}/words`, {
       words,
+      ...(hareCount !== undefined ? { hareCount } : {}),
     });
   }
 
-  getGameLeaderboard(id: string): Promise<GameLeaderboardResponse> {
+  getGameLeaderboard(id: string, board: Board = "tortoises"): Promise<GameLeaderboardResponse> {
     return this.request<GameLeaderboardResponse>(
       "GET",
-      `/api/games/${encodeURIComponent(id)}/leaderboard`,
+      `/api/games/${encodeURIComponent(id)}/leaderboard?board=${board}`,
     );
   }
 
@@ -108,10 +109,10 @@ export class Api {
     );
   }
 
-  async getAllTime(sort: AllTimeSort = "points"): Promise<AllTimeRow[]> {
+  async getAllTime(sort: AllTimeSort = "points", board: Board = "tortoises"): Promise<AllTimeRow[]> {
     const { rows } = await this.request<{ rows: AllTimeRow[] }>(
       "GET",
-      `/api/leaderboard/alltime?sort=${sort}`,
+      `/api/leaderboard/alltime?sort=${sort}&board=${board}`,
     );
     return rows;
   }

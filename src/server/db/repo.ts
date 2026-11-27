@@ -1,6 +1,8 @@
 // Thin data-access layer over D1. SQL lives here so the routes read like game
 // logic.
 
+import type { Board } from "../../shared/types";
+
 export interface GameRow {
   id: string;
   date: string;
@@ -19,6 +21,9 @@ export interface PlayRow {
   words_json: string;
   score: number;
   words_found: number;
+  hare_count: number;
+  hare_score: number;
+  hare_played: number;
   finished_at: number;
 }
 
@@ -92,12 +97,16 @@ export async function upsertPlay(db: D1Database, play: PlayRow): Promise<void> {
   await db
     .prepare(
       `INSERT INTO plays
-         (user_id, game_id, words_json, score, words_found, duration_ms, finished_at)
-       VALUES (?, ?, ?, ?, ?, 0, ?)
+         (user_id, game_id, words_json, score, words_found,
+          hare_count, hare_score, hare_played, duration_ms, finished_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
        ON CONFLICT(user_id, game_id) DO UPDATE SET
          words_json = excluded.words_json,
          score = excluded.score,
          words_found = excluded.words_found,
+         hare_count = excluded.hare_count,
+         hare_score = excluded.hare_score,
+         hare_played = excluded.hare_played,
          finished_at = excluded.finished_at`,
     )
     .bind(
@@ -106,6 +115,9 @@ export async function upsertPlay(db: D1Database, play: PlayRow): Promise<void> {
       play.words_json,
       play.score,
       play.words_found,
+      play.hare_count,
+      play.hare_score,
+      play.hare_played,
       play.finished_at,
     )
     .run();
@@ -130,6 +142,8 @@ export function wordsOf(row: { words_json: string }): string[] {
 export interface LeaderboardDbRow {
   username: string;
   score: number;
+  hare_score: number;
+  hare_played: number;
   words_found: number;
   words_json: string;
 }
@@ -138,14 +152,18 @@ export async function gameLeaderboard(
   db: D1Database,
   gameId: string,
   limit: number,
+  board: Board = "tortoises",
 ): Promise<LeaderboardDbRow[]> {
+  const where = board === "hares" ? "AND p.hare_played = 1" : "";
+  const order =
+    board === "hares" ? "p.hare_score DESC, p.finished_at ASC" : "p.score DESC, p.finished_at ASC";
   const { results } = await db
     .prepare(
-      `SELECT u.username AS username, p.score AS score,
-              p.words_found AS words_found, p.words_json AS words_json
+      `SELECT u.username AS username, p.score AS score, p.hare_score AS hare_score,
+              p.hare_played AS hare_played, p.words_found AS words_found, p.words_json AS words_json
        FROM plays p JOIN users u ON u.id = p.user_id
-       WHERE p.game_id = ?
-       ORDER BY p.score DESC, p.finished_at ASC
+       WHERE p.game_id = ? ${where}
+       ORDER BY ${order}
        LIMIT ?`,
     )
     .bind(gameId, limit)
@@ -162,25 +180,31 @@ export interface AllTimeDbRow {
 
 export type AllTimeSort = "points" | "games" | "avg";
 
-const ALL_TIME_ORDER: Record<AllTimeSort, string> = {
-  points: "total DESC",
-  games: "games DESC, total DESC",
-  avg: "(CAST(SUM(p.score) AS REAL) / COUNT(*)) DESC, total DESC",
-};
-
 export async function allTime(
   db: D1Database,
   limit: number,
   sort: AllTimeSort = "points",
+  board: Board = "tortoises",
 ): Promise<AllTimeDbRow[]> {
-  const order = ALL_TIME_ORDER[sort] ?? ALL_TIME_ORDER.points;
+  const where = board === "hares" ? "WHERE p.hare_played = 1" : "";
+  const totalExpr = board === "hares" ? "SUM(p.hare_score)" : "SUM(p.score)";
+  const gamesExpr = "COUNT(*)";
+  const avgExpr = `(CAST(${totalExpr} AS REAL) / NULLIF(${gamesExpr}, 0))`;
+  const order =
+    sort === "games"
+      ? `${gamesExpr} DESC, ${totalExpr} DESC`
+      : sort === "avg"
+        ? `${avgExpr} DESC, ${totalExpr} DESC`
+        : `${totalExpr} DESC`;
+
   const { results } = await db
     .prepare(
       `SELECT u.username AS username,
-              SUM(p.score) AS total,
-              COUNT(*) AS games,
+              ${totalExpr} AS total,
+              ${gamesExpr} AS games,
               SUM(p.words_found) AS words
        FROM plays p JOIN users u ON u.id = p.user_id
+       ${where}
        GROUP BY p.user_id
        ORDER BY ${order}, u.username ASC
        LIMIT ?`,
@@ -204,22 +228,28 @@ export interface RankedPlay {
   rank: number;
   username: string;
   score: number;
+  hare_score: number;
+  hare_played: number;
   words_found: number;
   words_json: string;
 }
 
-/** The player's row + rank for a game, or null if they have no run for it. */
+/** The player's row + rank for a game (on the chosen board), or null. */
 export async function playerRank(
   db: D1Database,
   gameId: string,
   userId: string,
+  board: Board = "tortoises",
 ): Promise<RankedPlay | null> {
+  const metric = board === "hares" ? "hare_score" : "score";
+  const where = board === "hares" ? "AND p.hare_played = 1" : "";
   const play = await db
     .prepare(
-      `SELECT u.username AS username, p.score AS score, p.words_found AS words_found,
+      `SELECT u.username AS username, p.score AS score, p.hare_score AS hare_score,
+              p.hare_played AS hare_played, p.words_found AS words_found,
               p.words_json AS words_json, p.finished_at AS finished_at
        FROM plays p JOIN users u ON u.id = p.user_id
-       WHERE p.game_id = ? AND p.user_id = ?`,
+       WHERE p.game_id = ? AND p.user_id = ? ${where}`,
     )
     .bind(gameId, userId)
     .first<Omit<RankedPlay, "rank"> & { finished_at: number }>();
@@ -228,15 +258,18 @@ export async function playerRank(
   const { results } = await db
     .prepare(
       `SELECT COUNT(*) AS n FROM plays
-       WHERE game_id = ? AND (score > ? OR (score = ? AND finished_at < ?))`,
+       WHERE game_id = ? ${board === "hares" ? "AND hare_played = 1" : ""}
+         AND (${metric} > ? OR (${metric} = ? AND finished_at < ?))`,
     )
-    .bind(gameId, play.score, play.score, play.finished_at)
+    .bind(gameId, play[metric], play[metric], play.finished_at)
     .all<{ n: number }>();
 
   return {
     rank: (results[0]?.n ?? 0) + 1,
     username: play.username,
     score: play.score,
+    hare_score: play.hare_score,
+    hare_played: play.hare_played,
     words_found: play.words_found,
     words_json: play.words_json,
   };
@@ -246,6 +279,8 @@ export async function playerRank(
 export interface DailyScoreRow {
   date: string;
   score: number;
+  hare_score: number;
+  hare_played: number;
   words_found: number;
   words_json: string;
   seed_a: string;
@@ -259,7 +294,8 @@ export async function userDailyScores(
 ): Promise<DailyScoreRow[]> {
   const { results } = await db
     .prepare(
-      `SELECT p.game_id AS date, p.score AS score, p.words_found AS words_found,
+      `SELECT p.game_id AS date, p.score AS score, p.hare_score AS hare_score,
+              p.hare_played AS hare_played, p.words_found AS words_found,
               p.words_json AS words_json, g.seed_a AS seed_a, g.seed_b AS seed_b
        FROM plays p JOIN games g ON g.id = p.game_id
        WHERE p.user_id = ?

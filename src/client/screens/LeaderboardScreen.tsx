@@ -1,32 +1,45 @@
 import { Component } from "preact";
 import { AppContext, type AppContextValue } from "../context";
-import type { AllTimeRow, AllTimeSort } from "../../shared/types";
+import type { AllTimeRow, AllTimeSort, Board } from "../../shared/types";
 
 interface State {
   loading: boolean;
   error: string | null;
   rows: AllTimeRow[];
   sort: AllTimeSort;
+  board: Board;
 }
 
-/** All-time board: total points, games played and average, sortable by each. */
+/** All-time board: totals, games played and average, sortable; Hares or Tortoises. */
 export class LeaderboardScreen extends Component<{}, State> {
   static contextType = AppContext;
 
-  state: State = { loading: true, error: null, rows: [], sort: "points" };
+  state: State = { loading: true, error: null, rows: [], sort: "points", board: "tortoises" };
   private alive = true;
 
   componentDidMount(): void {
-    const { api } = this.context as AppContextValue;
-    api
-      .getAllTime()
-      .then((rows) => this.alive && this.setState({ rows, loading: false }))
-      .catch(() => this.alive && this.setState({ loading: false, error: "Could not load the board." }));
+    this.load();
   }
 
   componentWillUnmount(): void {
     this.alive = false;
   }
+
+  private load(board: Board = this.state.board): void {
+    this.alive = true;
+    this.setState({ loading: true, error: null, rows: [] });
+    const { api } = this.context as AppContextValue;
+    api
+      .getAllTime("points", board)
+      .then((rows) => this.alive && this.setState({ rows, loading: false }))
+      .catch(() => this.alive && this.setState({ loading: false, error: "Could not load the board." }));
+  }
+
+  private setBoard = (board: Board): void => {
+    if (board === this.state.board) return;
+    this.setState({ board });
+    this.load(board);
+  };
 
   private setSort = (sort: AllTimeSort): void => this.setState({ sort });
 
@@ -56,13 +69,35 @@ export class LeaderboardScreen extends Component<{}, State> {
   }
 
   render() {
-    const { loading, error, rows } = this.state;
+    const { loading, error, rows, board } = this.state;
     const sorted = this.sorted();
 
     return (
       <div class="page page--narrow">
         <h1 class="title">Leaderboard</h1>
-        <p class="muted">Total points across every game, with games played and average.</p>
+        <p class="muted">
+          {board === "hares"
+            ? "Sum of every player's timed (hare) score across the games they attempted."
+            : "Total points across every game, with games played and average."}
+        </p>
+
+        <div class="tabs">
+          <button
+            type="button"
+            class={board === "hares" ? "tabs__tab tabs__tab--active" : "tabs__tab"}
+            onClick={() => this.setBoard("hares")}
+          >
+            Hares
+          </button>
+          <button
+            type="button"
+            class={board === "tortoises" ? "tabs__tab tabs__tab--active" : "tabs__tab"}
+            onClick={() => this.setBoard("tortoises")}
+          >
+            Tortoises
+          </button>
+        </div>
+
         {loading && <p class="muted">Loading…</p>}
         {error && <p class="error">{error}</p>}
         {!loading && rows.length === 0 && <p class="muted">No scores yet.</p>}
@@ -73,7 +108,7 @@ export class LeaderboardScreen extends Component<{}, State> {
               <tr>
                 <th>#</th>
                 <th>Player</th>
-                {this.header("Points", "points")}
+                {this.header(board === "hares" ? "Hare" : "Points", "points")}
                 {this.header("Games", "games")}
                 {this.header("Avg", "avg")}
               </tr>

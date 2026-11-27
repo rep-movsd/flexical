@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { AppEnv } from "../env";
 import { getDictionary } from "../dictionary";
 import { ensureGame } from "../games";
-import { localDate, parseOffset } from "../time";
+import { gameDate } from "../time";
 import { MIN_GAME_DATE, REVEAL_LOCKS } from "../config";
 import {
   classifyWords,
@@ -13,6 +13,7 @@ import {
   toLetterSet,
   type Badges,
 } from "../../shared/engine";
+import type { Board } from "../../shared/types";
 import type { GameRow } from "../db/repo";
 import {
   gameLeaderboard,
@@ -34,6 +35,10 @@ function playableDate(id: string, today: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(id) && id >= MIN_GAME_DATE && id <= today;
 }
 
+function parseBoard(value: string | undefined): Board {
+  return value === "hares" ? "hares" : "tortoises";
+}
+
 function gameView(game: GameRow) {
   return {
     id: game.id,
@@ -49,7 +54,7 @@ function gameView(game: GameRow) {
 
 /**
  * The signed-in player's state for a game. A game is open indefinitely; the only
- * way it locks is by revealing another player's words.
+ * way it locks is by peeking at another player's words.
  */
 async function meView(db: D1Database, game: GameRow, user: { id: string } | null) {
   if (!user) return null;
@@ -65,9 +70,12 @@ async function meView(db: D1Database, game: GameRow, user: { id: string } | null
       score: 0,
       bestScore: 0,
       words: [] as string[],
-      badges: computeBadges([], game.seed_a, game.seed_b),
-      badgeWords: computeBadgeWords([], game.seed_a, game.seed_b),
+      badges: computeBadges([], game.seed_a),
+      badgeWords: computeBadgeWords([], game.seed_a),
       gamesPlayed,
+      hareScore: 0,
+      hareCount: 0,
+      harePlayed: false,
     };
   }
 
@@ -79,9 +87,12 @@ async function meView(db: D1Database, game: GameRow, user: { id: string } | null
     score: play.score,
     bestScore: play.score,
     words,
-    badges: computeBadges(words, game.seed_a, game.seed_b),
-    badgeWords: computeBadgeWords(words, game.seed_a, game.seed_b),
+    badges: computeBadges(words, game.seed_a),
+    badgeWords: computeBadgeWords(words, game.seed_a),
     gamesPlayed,
+    hareScore: play.hare_score,
+    hareCount: play.hare_count,
+    harePlayed: play.hare_played === 1,
   };
 }
 
@@ -89,8 +100,7 @@ async function meView(db: D1Database, game: GameRow, user: { id: string } | null
 
 gameRoutes.get("/today", async (c) => {
   const db = c.env.DB;
-  const today = localDate(parseOffset(c.req.header("X-TZ-Offset")));
-  const game = await ensureGame(db, today);
+  const game = await ensureGame(db, gameDate());
   return c.json({ game: gameView(game), me: await meView(db, game, c.get("user")) });
 });
 
@@ -98,12 +108,16 @@ gameRoutes.get("/today", async (c) => {
  * Auto-save the player's word set. Words only ever accumulate, so the stored run
  * is the union of what we already had and the (validated) incoming words.
  * Anonymous players get a validation + badge response but nothing is stored.
+ *
+ * `hareCount` (optional) is the client's timed boundary: the first N words were
+ * found during the 3-minute window. The timer is client-side; the server just
+ * records the boundary and scores it.
  */
 gameRoutes.post("/:id/words", async (c) => {
   const db = c.env.DB;
   const user = c.get("user");
   const id = c.req.param("id");
-  const today = localDate(parseOffset(c.req.header("X-TZ-Offset")));
+  const today = gameDate();
 
   const game = await getGame(db, id);
   if (!game) return c.json({ error: "not_found" }, 404);
@@ -116,6 +130,10 @@ gameRoutes.post("/:id/words", async (c) => {
   const body = await c.req.json().catch(() => null);
   const raw: unknown[] = Array.isArray(body?.words) ? body.words : [];
   const submitted = raw.filter((word): word is string => typeof word === "string");
+  const hareCountRaw =
+    typeof body?.hareCount === "number" && Number.isFinite(body.hareCount)
+      ? Math.max(0, Math.trunc(body.hareCount))
+      : null;
 
   const allowed = toLetterSet(game.letters.split(""));
   const k = computeK(game.longest_seed_length);
@@ -124,6 +142,9 @@ gameRoutes.post("/:id/words", async (c) => {
   let words = result.accepted;
   let score = result.score;
   let persisted = false;
+  let hareScore = 0;
+  let hareCount = 0;
+  let harePlayed = 0;
 
   if (user) {
     const existing = await getPlay(db, user.id, id);
@@ -137,12 +158,22 @@ gameRoutes.post("/:id/words", async (c) => {
     }
     words = merged;
     score = scoreWords(merged, k);
+
+    const prevCount = existing?.hare_count ?? 0;
+    const prevPlayed = existing?.hare_played ?? 0;
+    harePlayed = hareCountRaw !== null || prevPlayed === 1 ? 1 : 0;
+    hareCount = Math.min(hareCountRaw ?? prevCount, merged.length);
+    hareScore = hareCount > 0 ? scoreWords(merged.slice(0, hareCount), k) : 0;
+
     await upsertPlay(db, {
       user_id: user.id,
       game_id: id,
       words_json: JSON.stringify(merged),
       score,
       words_found: merged.length,
+      hare_count: hareCount,
+      hare_score: hareScore,
+      hare_played: harePlayed,
       finished_at: Date.now(),
     });
     persisted = true;
@@ -152,48 +183,55 @@ gameRoutes.post("/:id/words", async (c) => {
     accepted: result.accepted,
     rejected: result.rejected,
     score,
-    badges: computeBadges(words, game.seed_a, game.seed_b),
-    badgeWords: computeBadgeWords(words, game.seed_a, game.seed_b),
+    badges: computeBadges(words, game.seed_a),
+    badgeWords: computeBadgeWords(words, game.seed_a),
     words,
     bestScore: score,
     locked: false,
     persisted,
+    hareScore,
+    hareCount,
+    harePlayed: harePlayed === 1,
   });
 });
 
 gameRoutes.get("/:id/leaderboard", async (c) => {
   const db = c.env.DB;
   const id = c.req.param("id");
-  const today = localDate(parseOffset(c.req.header("X-TZ-Offset")));
-  if (!playableDate(id, today)) return c.json({ error: "invalid_date" }, 400);
+  const board = parseBoard(c.req.query("board"));
+  if (!playableDate(id, gameDate())) return c.json({ error: "invalid_date" }, 400);
 
   const game = await ensureGame(db, id);
-  const rows = await gameLeaderboard(db, game.id, 10);
+  const rows = await gameLeaderboard(db, game.id, 10, board);
   const top = rows.map((row, index) => ({
     rank: index + 1,
     username: row.username,
-    score: row.score,
+    score: board === "hares" ? row.hare_score : row.score,
     wordsFound: row.words_found,
-    badges: computeBadges(wordsOf(row), game.seed_a, game.seed_b) as Badges,
+    badges: computeBadges(wordsOf(row), game.seed_a) as Badges,
+    hareScore: row.hare_score,
+    harePlayed: row.hare_played === 1,
   }));
 
   // The current player, if they have a run that isn't already in the top 10.
   const user = c.get("user");
   let me = null;
   if (user) {
-    const ranked = await playerRank(db, game.id, user.id);
+    const ranked = await playerRank(db, game.id, user.id, board);
     if (ranked && ranked.rank > top.length) {
       me = {
         rank: ranked.rank,
         username: ranked.username,
-        score: ranked.score,
+        score: board === "hares" ? ranked.hare_score : ranked.score,
         wordsFound: ranked.words_found,
-        badges: computeBadges(wordsOf(ranked), game.seed_a, game.seed_b) as Badges,
+        badges: computeBadges(wordsOf(ranked), game.seed_a) as Badges,
+        hareScore: ranked.hare_score,
+        harePlayed: ranked.hare_played === 1,
       };
     }
   }
 
-  return c.json({ game: gameView(game), top, me });
+  return c.json({ game: gameView(game), board, top, me });
 });
 
 /**
@@ -220,7 +258,7 @@ gameRoutes.post("/:id/peek/:username", async (c) => {
   return c.json({
     username: target.username,
     score: play.score,
-    badges: computeBadges(words, game.seed_a, game.seed_b),
+    badges: computeBadges(words, game.seed_a),
     words,
     locked,
   });
@@ -229,8 +267,7 @@ gameRoutes.post("/:id/peek/:username", async (c) => {
 gameRoutes.get("/:id", async (c) => {
   const db = c.env.DB;
   const id = c.req.param("id");
-  const today = localDate(parseOffset(c.req.header("X-TZ-Offset")));
-  if (!playableDate(id, today)) return c.json({ error: "invalid_date" }, 400);
+  if (!playableDate(id, gameDate())) return c.json({ error: "invalid_date" }, 400);
   const game = await ensureGame(db, id);
   return c.json({ game: gameView(game), me: await meView(db, game, c.get("user")) });
 });

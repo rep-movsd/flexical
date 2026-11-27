@@ -2,10 +2,9 @@ import { Component } from "preact";
 import type { BadgeKind, Badges } from "../../shared/types";
 
 const META: Record<BadgeKind, { icon: string; title: string }> = {
-  // Use the emoji-presentation forms so all three render at a consistent size
-  // in the same emoji font (see .badge-icon in styles.css).
-  sun: { icon: "☀️", title: "Found the sun seed" },
-  moon: { icon: "🌙", title: "Found the moon seed" },
+  // Use the emoji-presentation forms so both render at a consistent size in the
+  // same emoji font (see .badge-icon in styles.css).
+  sun: { icon: "☀️", title: "Found the seed word" },
   star: { icon: "⭐", title: "A long non-seed word" },
 };
 
@@ -25,7 +24,7 @@ export class BadgeIcon extends Component<{ kind: BadgeKind }> {
 export class BadgeIcons extends Component<{ badges: Badges; showEmpty?: boolean }> {
   render() {
     const { badges, showEmpty } = this.props;
-    const kinds = (["sun", "moon", "star"] as BadgeKind[]).filter((kind) => badges[kind]);
+    const kinds = (["sun", "star"] as BadgeKind[]).filter((kind) => badges[kind]);
     if (kinds.length === 0 && !showEmpty) return null;
     return (
       <span class="badges" aria-label="badges">

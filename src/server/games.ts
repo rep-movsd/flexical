@@ -38,9 +38,9 @@ export async function ensureGame(db: D1Database, date: string): Promise<GameRow>
 
   const dictionary = getDictionary();
   const avoid = await recentSeeds(db, 200);
-  // One seed word for now; the second seed is stored empty.
+  // A game is built from a single seed word.
   const seed = pickSeed(date, dictionary, avoid);
-  const letters = allowedLetters(seed, "");
+  const letters = allowedLetters(seed);
 
   const row: GameRow = {
     id: date,

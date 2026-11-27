@@ -10,7 +10,7 @@ export interface FoundWord {
   marks: BadgeKind[];
 }
 
-export type FoundView = "words" | "counts" | "help";
+export type FoundView = "words" | "stats" | "help";
 
 interface Props {
   words: FoundWord[];
@@ -68,15 +68,15 @@ export class FoundWords extends Component<Props> {
           </p>
           <div class="found__views" role="group" aria-label="Found words view">
             {this.viewButton("words", "Words found, newest first", "words")}
-            {this.viewButton("counts", "Remaining by word length", "stats")}
+            {this.viewButton("stats", "Remaining by word length", "stats")}
             {this.viewButton("help", "How to play", "help")}
           </div>
         </div>
 
         {view === "words"
           ? this.renderWords()
-          : view === "counts"
-            ? this.renderCounts()
+          : view === "stats"
+            ? this.renderStats()
             : this.renderHelp()}
       </section>
     );
@@ -100,7 +100,7 @@ export class FoundWords extends Component<Props> {
   }
 
   /** View B: one progress bar per word length (found / total). */
-  private renderCounts() {
+  private renderStats() {
     const { words, maxLength, minLength, counts } = this.props;
 
     const totals = new Map<number, number>();
@@ -160,12 +160,22 @@ export class FoundWords extends Component<Props> {
           <li>
             <BadgeIcon kind="star" /> a non-seed word at least as long as the seed.
           </li>
-          <li>Your words save automatically — come back and keep adding any time.</li>
           <li>
-            Looking at someone's answers locks that game for you, so only peek when you're done.
+            <strong>Today's game</strong> gives you one <strong>3-minute timed attempt</strong> — your{" "}
+            <strong>hare</strong> score. Press <strong>Start</strong> when you're ready; you can
+            pause any time.
           </li>
           <li>
-            Every day is a new puzzle; replay past days from the <a href="/archive">Archive</a>.
+            After the timer runs out — or on any past day — keep playing for your{" "}
+            <strong>tortoise</strong> total. It has no time limit and never expires.
+          </li>
+          <li>A new game arrives every day at midnight IST.</li>
+          <li>Your words save automatically, so you can come back and keep going.</li>
+          <li>
+            Peeking at someone's answers locks that game for you, so only peek when you're done.
+          </li>
+          <li>
+            Replay past days from the <a href="/archive">Archive</a>.
           </li>
         </ul>
       </div>

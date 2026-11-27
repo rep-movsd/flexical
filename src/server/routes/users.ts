@@ -20,7 +20,9 @@ userRoutes.get("/:username/scores", async (c) => {
     date: row.date,
     score: row.score,
     wordsFound: row.words_found,
-    badges: computeBadges(wordsOf(row), row.seed_a, row.seed_b),
+    badges: computeBadges(wordsOf(row), row.seed_a),
+    hareScore: row.hare_score,
+    harePlayed: row.hare_played === 1,
   }));
   const total = rows.reduce((sum, row) => sum + row.score, 0);
 

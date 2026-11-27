@@ -1,16 +1,16 @@
 // ---------------------------------------------------------------------------
 // Letters
 // ---------------------------------------------------------------------------
-// The puzzle is a *set* of allowed letters (the distinct letters of the two
-// seed words). Letters may be reused any number of times, so a word is valid
-// iff every letter it contains is in the set — no counting, no consumption.
+// The puzzle is a *set* of allowed letters (the distinct letters of the seed
+// word). Letters may be reused any number of times, so a word is valid iff
+// every letter it contains is in the set — no counting, no consumption.
 
 export type LetterSet = Set<string>;
 
-/** Distinct uppercase letters appearing in either seed word, sorted A–Z. */
-export function allowedLetters(seedA: string, seedB: string): string[] {
+/** Distinct uppercase letters appearing in the seed word, sorted A–Z. */
+export function allowedLetters(seed: string): string[] {
   const set = new Set<string>();
-  for (const ch of `${seedA}${seedB}`.toUpperCase()) {
+  for (const ch of seed.toUpperCase()) {
     if (ch >= "A" && ch <= "Z") set.add(ch);
   }
   return [...set].sort();

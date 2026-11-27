@@ -39,6 +39,12 @@ export interface MeView {
   badgeWords: BadgeWords;
   /** Total games this player has recorded a run for. */
   gamesPlayed: number;
+  /** Timed (hare) score for this game, if the player attempted the timer. */
+  hareScore: number;
+  /** Number of leading words that were found during the timed window. */
+  hareCount: number;
+  /** Whether the player used the timed attempt for this game. */
+  harePlayed: boolean;
 }
 
 export interface GameResponse {
@@ -58,7 +64,13 @@ export interface SaveResult {
   locked: boolean;
   /** True when the words were written to the player's saved run. */
   persisted: boolean;
+  hareScore: number;
+  hareCount: number;
+  harePlayed: boolean;
 }
+
+/** Which leaderboard variant. */
+export type Board = "hares" | "tortoises";
 
 export interface LeaderboardRow {
   rank: number;
@@ -66,6 +78,8 @@ export interface LeaderboardRow {
   score: number;
   wordsFound: number;
   badges: Badges;
+  hareScore: number;
+  harePlayed: boolean;
 }
 
 /** A game board: the top rows plus the viewer's own row if outside the top. */
@@ -92,6 +106,8 @@ export interface OpponentScoreRow {
   score: number;
   wordsFound: number;
   badges: Badges;
+  hareScore: number;
+  harePlayed: boolean;
 }
 
 export interface OpponentResponse {

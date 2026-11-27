@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeBadgeWords, computeBadges, wordMarks } from "./badges";
+import { computeBadgeWords, computeBadges } from "./badges";
 import { countAnswersByLength, totalAnswers } from "./answers";
 import { createDictionary } from "./dictionary";
 import { allowedLetters, isBuildable, toLetterSet } from "./letters";
@@ -11,19 +11,17 @@ import { classifyWords } from "./validation";
 // stay green as the game evolves.
 
 describe("allowedLetters", () => {
-  it("returns the distinct letters of both seeds, sorted", () => {
-    expect(allowedLetters("MOUNTAIN", "TRAINERS")).toEqual(
-      "AEIMNORSTU".split(""),
-    );
+  it("returns the distinct letters of the seed, sorted", () => {
+    expect(allowedLetters("MOUNTAIN")).toEqual("AIMNOTU".split(""));
   });
 
   it("collapses duplicates", () => {
-    expect(allowedLetters("AA", "A")).toEqual(["A"]);
+    expect(allowedLetters("AA")).toEqual(["A"]);
   });
 });
 
 describe("isBuildable", () => {
-  const set = toLetterSet(allowedLetters("MOUNTAIN", "TRAINERS"));
+  const set = toLetterSet("AEIMNORSTU".split(""));
 
   it("accepts a word using only allowed letters", () => {
     expect(isBuildable("STONE", set)).toBe(true);
@@ -67,46 +65,29 @@ describe("scoring", () => {
 });
 
 describe("badges", () => {
-  const seedA = "mountain";
-  const seedB = "trainers";
-
-  it("awards sun for the seed; moon is disabled (single-seed games)", () => {
-    expect(computeBadges(["mountain"], "mountain", "")).toEqual({
-      sun: true,
-      moon: false,
-      star: false,
-    });
-    // moon (second seed) is disabled for now:
-    expect(computeBadges(["trainers"], "mountain", "trainers").moon).toBe(false);
+  it("awards sun for the seed word", () => {
+    expect(computeBadges(["mountain"], "mountain")).toEqual({ sun: true, star: false });
   });
 
-  it("awards star for a non-seed word at least as long as the shorter seed", () => {
-    expect(computeBadges(["strainer"], seedA, seedB).star).toBe(true);
+  it("awards star for a non-seed word at least as long as the seed", () => {
+    expect(computeBadges(["mountain", "strainer"], "mountain").star).toBe(true);
   });
 
   it("does not award star for a short word", () => {
-    expect(computeBadges(["stone"], seedA, seedB).star).toBe(false);
+    expect(computeBadges(["stone"], "mountain").star).toBe(false);
   });
 
-  it("reports which words earned each badge (moon always null)", () => {
-    expect(computeBadgeWords(["mandarin", "hardship"], "snappish", "mandarin")).toEqual({
+  it("reports which words earned each badge", () => {
+    expect(computeBadgeWords(["mandarin", "hardship"], "snappish")).toEqual({
       sun: null,
-      moon: null,
       star: "hardship",
     });
-  });
-
-  it("classifies a single word's marks", () => {
-    const marks = (w: string): string[] => wordMarks(w, "snappish", "mandarin");
-    expect(marks("snappish")).toEqual(["sun"]);
-    expect(marks("hardship")).toEqual(["star"]);
-    expect(marks("stone")).toEqual([]);
   });
 });
 
 describe("classifyWords", () => {
   const dict = createDictionary(["stone", "tenet", "apple", "strainer"]);
-  const allowed = toLetterSet(allowedLetters("MOUNTAIN", "TRAINERS"));
+  const allowed = toLetterSet("AEIMNORSTU".split(""));
   const k = computeK(9);
 
   it("accepts valid words and rejects others with reasons", () => {
@@ -162,7 +143,7 @@ describe("seeds", () => {
 
 describe("answer counts", () => {
   const dict = createDictionary(["stone", "tenet", "strainer", "star", "apple", "cat"]);
-  const allowed = toLetterSet(allowedLetters("MOUNTAIN", "TRAINERS"));
+  const allowed = toLetterSet("AEIMNORSTU".split(""));
 
   it("counts buildable words per length", () => {
     const counts = countAnswersByLength(allowed, dict, 4);

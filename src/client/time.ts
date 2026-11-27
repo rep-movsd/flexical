@@ -1,11 +1,9 @@
-/** Minutes to add to local time to reach UTC (Date.prototype.getTimezoneOffset). */
-export function tzOffset(): number {
-  return new Date().getTimezoneOffset();
-}
+// The game's "day" is fixed to IST (UTC+5:30), matching the server.
 
-/** The viewer's local calendar date as YYYY-MM-DD. */
-export function localDateString(): string {
-  const now = new Date();
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 10);
+const GAME_TZ_OFFSET_MINUTES = 5 * 60 + 30;
+
+/** The game day (YYYY-MM-DD) for `now`, in IST. */
+export function gameDateString(now = new Date()): string {
+  const shifted = new Date(now.getTime() + GAME_TZ_OFFSET_MINUTES * 60_000);
+  return shifted.toISOString().slice(0, 10);
 }

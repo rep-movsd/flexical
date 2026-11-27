@@ -12,7 +12,6 @@
   --accent-2: #22d3a7;
   --danger: #ff6b6b;
   --sun: #ffcf5c;
-  --moon: #9fd0ff;
   --border: #2e2e4a;
   --radius: 14px;
   --radius-sm: 10px;
@@ -228,6 +227,74 @@ h3 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.game__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent-2);
+}
+
+.timer--paused {
+  color: var(--fg-muted);
+}
+
+.timer--done {
+  color: var(--danger);
+}
+
+/* Blurred behind the hare overlay so the letters aren't visible early. */
+.board-frame--blurred {
+  filter: blur(12px);
+  pointer-events: none;
+  user-select: none;
+}
+
+.ready-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(18, 18, 28, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.ready-card {
+  width: min(380px, 92vw);
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+  text-align: center;
+  padding: 28px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.ready-title {
+  font-size: 1.4rem;
+}
+
+.ready-count {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.ready-card .btn {
+  width: 100%;
 }
 
 /* The allowed letters, as pressable keys. */
@@ -759,7 +826,7 @@ h3 {
     display: contents;
   }
 
-  .game__main {
+  .letter-box {
     order: 1;
     flex: 0 0 auto;
   }

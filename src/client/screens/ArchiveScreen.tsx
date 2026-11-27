@@ -1,8 +1,8 @@
 import { Component } from "preact";
 import { route } from "preact-router";
 import { AppContext, type AppContextValue } from "../context";
-import { localDateString } from "../time";
-import type { LeaderboardRow } from "../../shared/types";
+import { gameDateString } from "../time";
+import type { Board, LeaderboardRow } from "../../shared/types";
 import { BadgeIcon } from "../components/BadgeIcons";
 import { Modal } from "../components/Modal";
 
@@ -23,6 +23,7 @@ interface Peeked {
 interface State {
   loading: boolean;
   error: string | null;
+  board: Board;
   top: LeaderboardRow[];
   me: LeaderboardRow | null;
   /** username awaiting peek confirmation. */
@@ -39,6 +40,7 @@ export class ArchiveScreen extends Component<Props, State> {
   state: State = {
     loading: true,
     error: null,
+    board: "tortoises",
     top: [],
     me: null,
     confirming: null,
@@ -60,15 +62,21 @@ export class ArchiveScreen extends Component<Props, State> {
   }
 
   private date(): string {
-    return this.props.date ?? localDateString();
+    return this.props.date ?? gameDateString();
   }
 
-  private load(): void {
+  private setBoard = (board: Board): void => {
+    if (board === this.state.board) return;
+    this.setState({ board });
+    this.load(board);
+  };
+
+  private load(board: Board = this.state.board): void {
     this.alive = true;
     this.setState({ loading: true, error: null, top: [], me: null, peeked: null });
     const { api } = this.context as AppContextValue;
     api
-      .getGameLeaderboard(this.date())
+      .getGameLeaderboard(this.date(), board)
       .then((response) => {
         if (!this.alive) return;
         this.setState({ top: response.top, me: response.me, loading: false });
@@ -112,11 +120,6 @@ export class ArchiveScreen extends Component<Props, State> {
             <BadgeIcon kind="sun" />
           </span>
         </td>
-        <td class="board__badge">
-          <span class={row.badges.moon ? "badge-cell" : "badge-cell badge-cell--off"}>
-            <BadgeIcon kind="moon" />
-          </span>
-        </td>
         <td class="board__num">
           <button
             type="button"
@@ -131,9 +134,9 @@ export class ArchiveScreen extends Component<Props, State> {
   }
 
   render() {
-    const { loading, error, top, me, confirming, peeked, peeking } = this.state;
+    const { loading, error, top, me, confirming, peeked, peeking, board } = this.state;
     const date = this.date();
-    const today = localDateString();
+    const today = gameDateString();
     const isToday = date === today;
 
     return (
@@ -156,9 +159,30 @@ export class ArchiveScreen extends Component<Props, State> {
           </a>
         </div>
 
+        <div class="tabs">
+          <button
+            type="button"
+            class={board === "hares" ? "tabs__tab tabs__tab--active" : "tabs__tab"}
+            onClick={() => this.setBoard("hares")}
+          >
+            Hares
+          </button>
+          <button
+            type="button"
+            class={board === "tortoises" ? "tabs__tab tabs__tab--active" : "tabs__tab"}
+            onClick={() => this.setBoard("tortoises")}
+          >
+            Tortoises
+          </button>
+        </div>
+
         {loading && <p class="muted">Loading…</p>}
         {error && <p class="error">{error}</p>}
-        {!loading && top.length === 0 && !me && <p class="muted">No scores for this day yet.</p>}
+        {!loading && top.length === 0 && !me && (
+          <p class="muted">
+            {board === "hares" ? "No timed scores for this day yet." : "No scores for this day yet."}
+          </p>
+        )}
 
         {(top.length > 0 || me) && (
           <table class="board">
@@ -166,9 +190,8 @@ export class ArchiveScreen extends Component<Props, State> {
               <tr>
                 <th>#</th>
                 <th>Player</th>
-                <th class="board__num">Points</th>
+                <th class="board__num">{board === "hares" ? "Hare" : "Total"}</th>
                 <th class="board__badge">☀</th>
-                <th class="board__badge">🌙</th>
                 <th />
               </tr>
             </thead>

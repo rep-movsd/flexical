@@ -27,14 +27,17 @@ Currently an early prototype.
   seed length. This makes the seed word score exactly `2L` and longer words worth
   exponentially more.
 - **Badges:** ☀ found the seed word; ⭐ found a non-seed word at least as long as
-  the seed. (🌙, the second-seed badge, is currently disabled — see below.)
+  the seed.
 - The server **precomputes how many answers exist per word length**; each
   found-words lane shows `found / total`.
-- **Open forever, untimed.** There is no clock and no race: play at your own pace
-  and keep adding words until you've found them all. Your found words are
-  **saved automatically** as you go (signed-in players only), so you can come
-  back and continue any time. Each game has a leaderboard; the all-time
-  "marathon" board sums your score on every game you've played.
+- **Hare & tortoise.** Today's game gives you **one 3-minute timed attempt** — the
+  score when the clock runs out is your **hare** score. After it (and on any past
+  game) you keep playing untimed for your **tortoise** total. Press **Start** to
+  begin and **pause** any time; the timer runs in your browser.
+- **A new game arrives at 00:00 IST**, and your found words are **saved
+  automatically** as you go (signed-in players only), so you can come back and
+  continue any time. Each game has a **Hares / Tortoises** leaderboard; the all-time
+  board sums your scores the same way.
 - **Revealing** another player's words (from a leaderboard) permanently locks
   that game for you.
 
@@ -93,7 +96,7 @@ Pure TypeScript, no I/O, no framework — safe on both the client and the Worker
 |---|---|
 | `letters.ts` | `allowedLetters`, `toLetterSet`, `normalizeWord`, `isBuildable` |
 | `scoring.ts` | `MIN_WORD_LENGTH`, `computeK`, `pointsForLength`, `scoreWords` |
-| `badges.ts` | `computeBadgeWords`, `computeBadges`, `wordMarks` (moon disabled) |
+| `badges.ts` | `computeBadgeWords`, `computeBadges` (☀ sun, ⭐ star) |
 | `seeds.ts` | `pickSeed` — deterministic, date-seeded single seed word |
 | `validation.ts` | `classifyWords` — server-side word classification |
 | `answers.ts` | `countAnswersByLength` — per-length answer counts |
@@ -124,6 +127,7 @@ npm run db:reset:local       # wipe + recreate local D1 tables
 | `npm run typecheck` | `tsc` across client, worker and config |
 | `npm test` | Vitest (engine contract tests) |
 | `npm run db:migrate:local` / `:remote` | Apply D1 migrations |
+| `npm run db:reset:games:local` / `:remote` | Clear games/plays/reveals (keeps accounts) |
 | `npm run db:reset:local` | Wipe + recreate the local database |
 | `npm run cf-typegen` | `wrangler types` (regenerate binding types) |
 
@@ -152,10 +156,10 @@ local day.
 | GET | `/api/health` | liveness |
 | GET | `/api/games/today` | `{ game, me }` |
 | GET | `/api/games/:id` | `{ game, me }` |
-| POST | `/api/games/:id/words` | `{ words }` → validate + badge marks; auto-saves when signed in |
-| GET | `/api/games/:id/leaderboard` | `{ game, top (10), me }` — `me` is your row if outside the top |
+| POST | `/api/games/:id/words` | `{ words, hareCount? }` → validate + marks; auto-saves when signed in |
+| GET | `/api/games/:id/leaderboard?board=` | `{ game, top (10), me }`; `board=hares\|tortoises` |
 | POST | `/api/games/:id/peek/:username` | that player's words (locks the game only when `REVEAL_LOCKS`) |
-| GET | `/api/leaderboard/alltime?sort=` | totals: `points` (default), `games`, or `avg` |
+| GET | `/api/leaderboard/alltime?sort=&board=` | totals: `sort=points\|games\|avg`, `board=hares\|tortoises` |
 | GET | `/api/users` | usernames (opponents autocomplete) |
 | GET | `/api/users/:username/scores` | every daily score for a player |
 
@@ -175,7 +179,8 @@ order they were found. Game dates are restricted to `2026-01-01` → today
 - **games** — id/date, seed_a, seed_b (empty for single-seed games), letters,
   longest/shortest seed length, answer_counts_json, created_at
 - **plays** — (user_id, game_id) PK, words_json (the found words, in order),
-  score, words_found, duration_ms (unused, kept for legacy), finished_at
+  score, words_found, hare_count / hare_score / hare_played (the timed attempt),
+  duration_ms (unused, kept for legacy), finished_at
 - **reveals** — (user_id, game_id) PK, revealed_at
 
 Migrations are applied with `wrangler d1 migrations apply` (tracked in
@@ -211,9 +216,9 @@ including the inlined dictionary.
 - **No timer, no races.** The game is an untimed "find them all" puzzle; race
   mode and the get-ready countdown were removed. There is no single-shot
   submission — a game stays open and your words auto-save as you find them.
-- 🌙 **Moon is disabled.** Games currently use a single seed word, so the
-  second-seed badge is commented out (not deleted) in
-  `src/shared/engine/badges.ts`. Re-enable it if games go back to a seed *pair*.
+- **Single seed, two badges.** A game is built from one seed word; the badges are
+  ☀ **Sun** (found the seed) and ⭐ **Star** (a non-seed word at least as long as
+  the seed). See `src/shared/engine/badges.ts`.
 - The dictionary (`public/words.txt`) is filtered to 4+ letter, purely
   alphabetical words. It is both inlined into the Worker (authoritative checks)
   and served statically (client-side instant feedback).
