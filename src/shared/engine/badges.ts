@@ -5,13 +5,17 @@ import { normalizeWord } from "./letters";
 // ---------------------------------------------------------------------------
 // Awarded per run, shown on leaderboards and on the player's own found words.
 // They signal achievement without revealing words the player did not find.
+//
+// NOTE: games currently use a single seed word, so the 🌙 "moon" badge (the
+// second seed) is disabled. The moon code is kept (commented) so it is easy to
+// re-enable if we go back to a pair of seeds.
 
 export interface Badges {
-  /** Found seed word A (the first seed). */
+  /** Found seed word A (the first/only seed). */
   sun: boolean;
-  /** Found seed word B (the second seed). */
+  /** Found seed word B (the second seed). Disabled while games have one seed. */
   moon: boolean;
-  /** Found a non-seed word at least as long as the shorter seed. */
+  /** Found a non-seed word at least as long as the (shorter) seed. */
   star: boolean;
 }
 
@@ -34,7 +38,12 @@ export function computeBadgeWords(
 
   const a = normalizeWord(seedA);
   const b = normalizeWord(seedB);
-  const shorter = Math.min(a.length, b.length);
+  // With one seed, the reference length is the single seed's length.
+  const shorter = b.length > 0 ? Math.min(a.length, b.length) : a.length;
+
+  // --- Moon (second seed) disabled: single-seed games. ---------------------
+  // const moon = b.length > 0 && found.has(b) ? b : null;
+  const moon: string | null = null;
 
   let star: string | null = null;
   for (const word of [...found].sort()) {
@@ -45,11 +54,7 @@ export function computeBadgeWords(
     }
   }
 
-  return {
-    sun: found.has(a) ? a : null,
-    moon: found.has(b) ? b : null,
-    star,
-  };
+  return { sun: found.has(a) ? a : null, moon, star };
 }
 
 export function computeBadges(
@@ -70,11 +75,11 @@ export function wordMarks(word: string, seedA: string, seedB: string): BadgeKind
   const w = normalizeWord(word);
   const a = normalizeWord(seedA);
   const b = normalizeWord(seedB);
-  const shorter = Math.min(a.length, b.length);
+  const shorter = b.length > 0 ? Math.min(a.length, b.length) : a.length;
 
   const marks: BadgeKind[] = [];
   if (w === a) marks.push("sun");
-  if (w === b) marks.push("moon");
+  // if (b.length > 0 && w === b) marks.push("moon");   // moon disabled
   if (w !== a && w !== b && w.length >= shorter) marks.push("star");
   return marks;
 }

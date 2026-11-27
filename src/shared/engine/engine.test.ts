@@ -4,7 +4,7 @@ import { countAnswersByLength, totalAnswers } from "./answers";
 import { createDictionary } from "./dictionary";
 import { allowedLetters, isBuildable, toLetterSet } from "./letters";
 import { computeK, pointsForLength, scoreWords } from "./scoring";
-import { pickSeeds, seedCandidates } from "./seeds";
+import { pickSeed, seedCandidates } from "./seeds";
 import { progressAt, type GhostWord } from "./timeline";
 import { classifyWords } from "./validation";
 
@@ -71,12 +71,14 @@ describe("badges", () => {
   const seedA = "mountain";
   const seedB = "trainers";
 
-  it("awards sun for seed A and moon for seed B", () => {
-    expect(computeBadges([seedA, seedB], seedA, seedB)).toEqual({
+  it("awards sun for the seed; moon is disabled (single-seed games)", () => {
+    expect(computeBadges(["mountain"], "mountain", "")).toEqual({
       sun: true,
-      moon: true,
+      moon: false,
       star: false,
     });
+    // moon (second seed) is disabled for now:
+    expect(computeBadges(["trainers"], "mountain", "trainers").moon).toBe(false);
   });
 
   it("awards star for a non-seed word at least as long as the shorter seed", () => {
@@ -87,18 +89,19 @@ describe("badges", () => {
     expect(computeBadges(["stone"], seedA, seedB).star).toBe(false);
   });
 
-  it("reports which words earned each badge", () => {
+  it("reports which words earned each badge (moon always null)", () => {
     expect(computeBadgeWords(["mandarin", "hardship"], "snappish", "mandarin")).toEqual({
       sun: null,
-      moon: "mandarin",
+      moon: null,
       star: "hardship",
     });
   });
 
   it("classifies a single word's marks", () => {
-    expect(wordMarks("mandarin", "snappish", "mandarin")).toEqual(["moon"]);
-    expect(wordMarks("hardship", "snappish", "mandarin")).toEqual(["star"]);
-    expect(wordMarks("stone", "snappish", "mandarin")).toEqual([]);
+    const marks = (w: string): string[] => wordMarks(w, "snappish", "mandarin");
+    expect(marks("snappish")).toEqual(["sun"]);
+    expect(marks("hardship")).toEqual(["star"]);
+    expect(marks("stone")).toEqual([]);
   });
 });
 
@@ -138,32 +141,29 @@ describe("classifyWords", () => {
 
 describe("seeds", () => {
   const dict = createDictionary([
-    "apples",
-    "banana",
-    "carbon",
-    "dinner",
-    "effort",
-    "fabric",
-    "garden",
-    "hidden",
+    "mountain",
+    "trainers",
+    "elephant",
+    "computer",
+    "saturday",
+    "television",
   ]);
 
-  it("picks two distinct candidates, deterministically", () => {
-    const first = pickSeeds("2026-11-26", dict);
-    const again = pickSeeds("2026-11-26", dict);
-    expect(first[0]).not.toBe(first[1]);
-    expect(again).toEqual(first);
+  it("picks a candidate, deterministically", () => {
+    const seed = pickSeed("2026-11-26", dict);
+    expect(seed).toBe(pickSeed("2026-11-26", dict));
+    expect(seed.length).toBeGreaterThanOrEqual(8);
+    expect(seed.length).toBeLessThanOrEqual(10);
   });
 
   it("respects the avoid set", () => {
-    const [a, b] = pickSeeds("2026-11-26", dict);
-    const avoid = new Set([`${[a, b].sort().join("|")}`]);
-    const next = pickSeeds("2026-11-26", dict, avoid);
-    expect([next[0], next[1]].sort().join("|")).not.toBe([a, b].sort().join("|"));
+    const seed = pickSeed("2026-11-26", dict);
+    const next = pickSeed("2026-11-26", dict, new Set([seed]));
+    expect(next).not.toBe(seed);
   });
 
-  it("finds 6 letter candidates", () => {
-    expect(seedCandidates(dict).every((w) => w.length === 6)).toBe(true);
+  it("finds 8–10 letter candidates", () => {
+    expect(seedCandidates(dict).every((w) => w.length >= 8 && w.length <= 10)).toBe(true);
   });
 });
 

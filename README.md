@@ -83,15 +83,15 @@ npm run build                # emits dist/client + dist/wordtwist
 ## How a game works
 
 - A **game** = one calendar date (in the viewer's local timezone), defined by a
-  hidden pair of 6-letter seed words.
+  hidden single seed word of 8–10 letters.
 - **Allowed letters** = the distinct letters of both seeds. Letters may be reused
   any number of times.
 - A word scores if it is **≥ 4 letters**, uses **only allowed letters**, and is in
   the dictionary.
 - Points: `round(n + K^n)` with `K = L^(1/L)` (`L` = longer seed length), so the
-  longest seed word scores `2L`.
-- Badges: ☀ found seed A, 🌙 found seed B, ⭐ a non-seed word at least as long as
-  the shorter seed.
+  seed word scores `2L`.
+- Badges: ☀ found the seed word, ⭐ a non-seed word at least as long as the seed
+  (🌙 is disabled while games use a single seed).
 - The server **precomputes how many answers exist per word length** when a game
   is created (and backfills older games on first fetch); each found-words lane
   shows `found / total`.

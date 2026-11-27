@@ -2,12 +2,12 @@ import {
   MIN_WORD_LENGTH,
   allowedLetters,
   countAnswersByLength,
-  pickSeeds,
+  pickSeed,
   toLetterSet,
 } from "../shared/engine";
 import { getDictionary } from "./dictionary";
 import type { GameRow } from "./db/repo";
-import { getGame, insertGame, recentSeedPairs, updateGameCounts } from "./db/repo";
+import { getGame, insertGame, recentSeeds, updateGameCounts } from "./db/repo";
 
 /** Precompute the per-length answer counts for a rack. */
 function answerCountsJson(letters: string): string {
@@ -20,9 +20,9 @@ function answerCountsJson(letters: string): string {
 }
 
 /**
- * Load the game for a date, generating it on first request. The pair of seed
- * words is chosen deterministically from the date, avoiding recent repeats, and
- * the answer counts are precomputed once and stored.
+ * Load the game for a date, generating it on first request. The seed word is
+ * chosen deterministically from the date, avoiding recent repeats, and the
+ * answer counts are precomputed once and stored.
  */
 export async function ensureGame(db: D1Database, date: string): Promise<GameRow> {
   const existing = await getGame(db, date);
@@ -37,18 +37,19 @@ export async function ensureGame(db: D1Database, date: string): Promise<GameRow>
   }
 
   const dictionary = getDictionary();
-  const avoid = await recentSeedPairs(db, 120);
-  const [seedA, seedB] = pickSeeds(date, dictionary, avoid);
-  const letters = allowedLetters(seedA, seedB);
+  const avoid = await recentSeeds(db, 200);
+  // One seed word for now; the second seed is stored empty.
+  const seed = pickSeed(date, dictionary, avoid);
+  const letters = allowedLetters(seed, "");
 
   const row: GameRow = {
     id: date,
     date,
-    seed_a: seedA,
-    seed_b: seedB,
+    seed_a: seed,
+    seed_b: "",
     letters: letters.join(""),
-    longest_seed_length: Math.max(seedA.length, seedB.length),
-    shortest_seed_length: Math.min(seedA.length, seedB.length),
+    longest_seed_length: seed.length,
+    shortest_seed_length: seed.length,
     answer_counts_json: answerCountsJson(letters.join("")),
     created_at: Date.now(),
   };

@@ -20,8 +20,8 @@ climb an all-time "marathon" ranking.
 
 | Term | Meaning |
 |---|---|
-| **Game** | One day's puzzle, defined by a pair of seed words. Identified by its UTC date. |
-| **Seed words** | Two distinct English words of a fixed length (currently 6 letters). Hidden from players. |
+| **Game** | One day's puzzle, defined by a seed word. Identified by its UTC date. |
+| **Seed words** | A single English word of 8–10 letters. Hidden from players. |
 | **Allowed letters** | The set of distinct letters appearing in either seed word. |
 | **Attempt** | One run at a game: a word list the player assembles and submits. |
 | **Run / Play** | The recorded result of one attempt (words, timestamps, score, badges). |
@@ -30,21 +30,21 @@ climb an all-time "marathon" ranking.
 
 ## The puzzle
 
-- Each day's game is generated from **two distinct seed words** of **6 letters**,
+- Each day's game is generated from a **single seed word** of **8–10 letters**,
   selected from the bundled dictionary.
 - The player is shown the **allowed letters**: the set of *distinct* letters in
-  either seed word. Duplicates collapse. For example, seeds `GARDEN` and `PIRATE`
-  give the allowed letters `A D E G I N P R T` (9 letters, each shown once).
+  the seed word. Duplicates collapse. For example, the seed `MOUNTAIN` gives the
+  allowed letters `A I M N O T U` (7 letters, each shown once).
 - Letters may be **reused any number of times**. The letters are a set of keys
   you are permitted to press, not a finite rack.
 - The server **precomputes how many answers exist per word length**; each
   found-words lane shows `found / total`.
-- The two seed words are **never shown**. Their **length** is shown as a target
-  (currently 6 letters) — see Scoring and Badges.
+- The seed word is **never shown**. Its **length** is shown as a target (8–10
+  letters) — see Scoring and Badges.
 
 ### Seed selection
 
-- Candidates are dictionary words of 6 letters.
+- Candidates are dictionary words of 8–10 letters.
 - A pair is chosen **deterministically from the UTC date**, so every player gets
   the same game on the same day, and the game can be regenerated from the date.
 - The two words are **distinct**. Recently used seeds are avoided so games do
@@ -63,15 +63,14 @@ A word is **valid** if and only if all of the following hold:
 Letters may repeat freely, so any word whose alphabet is a subset of the allowed
 letters qualifies, regardless of how many times a letter appears.
 
-Examples, with allowed letters `A D E G I N P R T`:
+Examples, with allowed letters `A I M N O T U`:
 
-- `GARDEN` — valid (it is a seed word).
-- `PIRATE` — valid (it is a seed word).
-- `TIRADE` — valid.
-- `TRAIN` — valid.
-- `TENET` — valid: letters repeat, which is always allowed.
-- `STONE` — invalid: `S` and `O` are not in the allowed set.
-- `APPLE` — invalid: `L` is not allowed.
+- `MOUNTAIN` — valid (it is the seed word).
+- `AMOUNT` — valid.
+- `MOUNT` — valid.
+- `TINT` — valid: letters repeat, which is always allowed.
+- `STONE` — invalid: `S` and `E` are not in the allowed set.
+- `APPLE` — invalid: `P` and `L` are not allowed.
 
 > The only reasons a word is rejected are: too short, contains a disallowed
 > letter, or is not in the dictionary. Repeating a letter is never a reason to
@@ -99,18 +98,18 @@ This makes longer words worth **exponentially** more, and is calibrated so that
 points(L) = L + K^L = L + L = 2L
 ```
 
-`K` is therefore **per-game** (it depends on that day's longest seed). Points are
+`K` is therefore **per-game** (it depends on the seed length). Points are
 rounded to whole numbers.
 
 ### Worked examples
 
-Seeds are always 6 letters, so `L = 6` and `K = 6^(1/6) ≈ 1.3480`:
+| Seed length `L` | `K` | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|
+| 8  | 1.2968 | 7 | 9 | 10 | 12 | **16** | – | – |
+| 9  | 1.2765 | 7 | 8 | 10 | 13 | 15 | **18** | – |
+| 10 | 1.2589 | 7 | 8 | 10 | 12 | 14 | 17 | **20** |
 
-| `n` | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
-|---|---|---|---|---|---|---|---|
-| `points(n)` | 7 | 9 | **12** | 15 | 19 | 24 | 30 |
-
-(At `n = 6` the seed word scores `2 × 6 = 12`.)
+(Bold = the seed word's score, `2L`.)
 
 Notes:
 
@@ -126,11 +125,11 @@ without revealing any words.
 
 | Badge | Earned by |
 |---|---|
-| ☀ **Sun** | The run contains **seed word A** (the first seed). |
-| 🌙 **Moon** | The run contains **seed word B** (the second seed). |
-| ⭐ **Star** | The run contains a **non-seed word at least as long as the shorter seed**. |
+| ☀ **Sun** | The run contains the **seed word**. |
+| 🌙 **Moon** | *Disabled while games use a single seed.* (Was: contains seed word B.) |
+| ⭐ **Star** | The run contains a **non-seed word at least as long as the seed**. |
 
-Badges are computed by the server (it knows the seeds). The client shows them on
+Badges are computed by the server (it knows the seed). The client shows them on
 submitted results and on leaderboard rows.
 
 ## Daily rhythm and replays
@@ -192,12 +191,12 @@ anything.
 
 ## Rules summary
 
-1. One game per UTC day, from a hidden pair of 6-letter seed words.
-2. You get the distinct letters of both seeds; reuse them freely.
+1. One game per UTC day, from a hidden single seed word of 8–10 letters.
+2. You get the distinct letters of the seed; reuse them freely.
 3. A word scores if it is ≥ 4 letters, uses only allowed letters, and is in the
    dictionary.
-4. `points(n) = round(n + K^n)`, `K = L^(1/L)`; the longest seed scores `2L`.
-5. Badges: ☀ seed A, 🌙 seed B, ⭐ a non-seed word ≥ the shorter seed.
+4. `points(n) = round(n + K^n)`, `K = L^(1/L)`; the seed word scores `2L`.
+5. Badges: ☀ the seed word, ⭐ a non-seed word ≥ the seed length. (🌙 disabled.)
 6. Today: one submission. Past games: unlimited replays, best score kept.
 7. Per-game boards (points + badges) and an all-time marathon board.
 8. Expanding anyone's words reveals them and permanently locks that game for you.

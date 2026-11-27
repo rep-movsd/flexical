@@ -3,13 +3,16 @@ import type { Dictionary } from "./dictionary";
 // ---------------------------------------------------------------------------
 // Seeds
 // ---------------------------------------------------------------------------
-// Each day's game is built from two distinct seed words of a fixed length
-// (SEED_MIN_LENGTH..SEED_MAX_LENGTH — currently 6 letters). The pair is chosen
-// deterministically from the date string, so every player on a given date gets
-// the same game and it can be regenerated from the date alone.
+// Each day's game is built from a single seed word of SEED_MIN_LENGTH..
+// SEED_MAX_LENGTH letters (currently 8–10). The word is chosen deterministically
+// from the date string, so every player on a given date gets the same game and
+// it can be regenerated from the date alone.
+//
+// (Historically a game used a *pair* of seeds; `pickSeed` picks one. The
+// two-seed variant is kept in git history if we want it back.)
 
-export const SEED_MIN_LENGTH = 6;
-export const SEED_MAX_LENGTH = 6;
+export const SEED_MIN_LENGTH = 8;
+export const SEED_MAX_LENGTH = 10;
 
 /** FNV-1a string hash → 32-bit seed. */
 function hashString(value: string): number {
@@ -34,7 +37,7 @@ function mulberry32(seed: number): () => number {
 
 const candidateCache = new WeakMap<Dictionary, string[]>();
 
-/** All candidate seed words (currently exactly 6 letters), sorted (cached per Dictionary). */
+/** All candidate seed words (SEED_MIN_LENGTH..SEED_MAX_LENGTH), sorted (cached per Dictionary). */
 export function seedCandidates(dict: Dictionary): string[] {
   const cached = candidateCache.get(dict);
   if (cached) return cached;
@@ -50,36 +53,27 @@ export function seedCandidates(dict: Dictionary): string[] {
   return candidates;
 }
 
-/** Canonical, order-independent key for a pair, used to avoid repeats. */
-export function pairKey(a: string, b: string): string {
-  return a < b ? `${a}|${b}` : `${b}|${a}`;
-}
-
 /**
- * Pick the two seed words for `dateKey`. `avoid` holds pair keys already used
- * recently; the search retries to steer clear of them.
+ * Pick the seed word for `dateKey`. `avoid` holds seeds already used recently;
+ * the search retries to steer clear of them.
  */
-export function pickSeeds(
+export function pickSeed(
   dateKey: string,
   dict: Dictionary,
   avoid: ReadonlySet<string> = new Set(),
-): [string, string] {
+): string {
   const candidates = seedCandidates(dict);
-  if (candidates.length < 2) {
+  if (candidates.length === 0) {
     throw new Error("Dictionary has too few seed words for a game.");
   }
 
   const rand = mulberry32(hashString(dateKey));
-  const pick = (): string => candidates[Math.floor(rand() * candidates.length)];
-
-  for (let attempt = 0; attempt < 100; attempt++) {
-    const a = pick();
-    const b = pick();
-    if (a === b) continue;
-    if (avoid.has(pairKey(a, b))) continue;
-    return [a, b];
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const word = candidates[Math.floor(rand() * candidates.length)];
+    if (avoid.has(word)) continue;
+    return word;
   }
 
   // Deterministic fallback if everything recent collided.
-  return [candidates[0], candidates[1]];
+  return candidates[0];
 }

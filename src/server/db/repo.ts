@@ -60,16 +60,16 @@ export async function updateGameCounts(
     .run();
 }
 
-/** Pair keys (`a|b`, sorted) of recently created games, to avoid repeats. */
-export async function recentSeedPairs(db: D1Database, limit = 120): Promise<Set<string>> {
+/** Seeds used by recently created games, to avoid repeats. */
+export async function recentSeeds(db: D1Database, limit = 200): Promise<Set<string>> {
   const { results } = await db
     .prepare("SELECT seed_a, seed_b FROM games ORDER BY created_at DESC LIMIT ?")
     .bind(limit)
     .all<{ seed_a: string; seed_b: string }>();
   const set = new Set<string>();
   for (const row of results) {
-    const [a, b] = row.seed_a < row.seed_b ? [row.seed_a, row.seed_b] : [row.seed_b, row.seed_a];
-    set.add(`${a}|${b}`);
+    if (row.seed_a) set.add(row.seed_a);
+    if (row.seed_b) set.add(row.seed_b);
   }
   return set;
 }
