@@ -9,6 +9,8 @@ import {
   computeBadgeWords,
   computeBadges,
   computeK,
+  listAnswers,
+  MIN_WORD_LENGTH,
   scoreWords,
   toLetterSet,
   type Badges,
@@ -262,6 +264,28 @@ gameRoutes.post("/:id/peek/:username", async (c) => {
     words,
     locked,
   });
+});
+
+/**
+ * Reveal every valid answer for a game ("cheat"), and — when REVEAL_LOCKS is on
+ * — permanently lock the game for the requester. The client shows the words the
+ * player missed.
+ */
+gameRoutes.post("/:id/reveal", async (c) => {
+  const db = c.env.DB;
+  const game = await getGame(db, c.req.param("id"));
+  if (!game) return c.json({ error: "not_found" }, 404);
+
+  const requester = c.get("user");
+  const locked = REVEAL_LOCKS;
+  if (locked && requester) await insertReveal(db, requester.id, game.id);
+
+  const answers = listAnswers(
+    toLetterSet(game.letters.split("")),
+    getDictionary(),
+    MIN_WORD_LENGTH,
+  );
+  return c.json({ answers, locked });
 });
 
 gameRoutes.get("/:id", async (c) => {

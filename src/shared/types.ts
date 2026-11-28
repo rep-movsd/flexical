@@ -126,6 +126,12 @@ export interface PeekResult {
   locked: boolean;
 }
 
+/** Every valid answer for a game, revealed by "cheating". */
+export interface RevealResult {
+  answers: string[];
+  locked: boolean;
+}
+
 export interface ApiError {
   error: string;
   message?: string;

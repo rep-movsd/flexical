@@ -12,6 +12,7 @@ import { FoundWords, type FoundWord, type FoundView } from "../components/FoundW
 import { Icon } from "../components/icons";
 import { Timer } from "../components/Timer";
 import { HareOverlay } from "../components/HareOverlay";
+import { Modal } from "../components/Modal";
 
 /** The timed attempt lasts three minutes. */
 const HARE_MS = 3 * 60 * 1000;
@@ -72,6 +73,11 @@ interface State {
   hareDone: boolean;
   /** Clock for the countdown. */
   now: number;
+  /** Reveal-answers ("cheat") dialog state. */
+  cheatConfirming: boolean;
+  cheating: boolean;
+  /** The words the player missed, once revealed (null = dialog closed). */
+  cheatWords: string[] | null;
 }
 
 const EMPTY_BADGE_WORDS: BadgeWords = { sun: null, star: null };
@@ -91,6 +97,9 @@ const EMPTY: State = {
   hare: null,
   hareDone: false,
   now: 0,
+  cheatConfirming: false,
+  cheating: false,
+  cheatWords: null,
 };
 
 /** Badge marks for one word, given what we know about the seed. */
@@ -368,6 +377,40 @@ export class GameScreen extends Component<Props, State> {
 
   private continueAfterHare = (): void => this.setState({ hareDone: false });
 
+  // --- Reveal answers ("cheat") ----------------------------------------------
+
+  private startCheat = (): void => this.setState({ cheatConfirming: true });
+
+  private cancelCheat = (): void => this.setState({ cheatConfirming: false });
+
+  /** Reveal every answer, show what was missed, and lock the game for good. */
+  private cheat = async (): Promise<void> => {
+    const { game, found } = this.state;
+    if (!game) return;
+    this.setState({ cheating: true });
+    const { api } = this.context as AppContextValue;
+    try {
+      const result = await api.revealAnswers(game.id);
+      if (!this.alive) return;
+      const have = new Set(found.map((entry) => entry.word));
+      const missed = result.answers.filter((word) => !have.has(word));
+      this.setState({
+        cheating: false,
+        cheatConfirming: false,
+        cheatWords: missed,
+        draft: "",
+        locked: this.state.locked || result.locked,
+      });
+    } catch {
+      if (!this.alive) return;
+      this.setState({
+        cheating: false,
+        cheatConfirming: false,
+        message: { text: "Could not reveal the answers.", kind: "err" },
+      });
+    }
+  };
+
   // --- Play ------------------------------------------------------------------
 
   private pick = (letter: string): void => {
@@ -480,8 +523,22 @@ export class GameScreen extends Component<Props, State> {
   }
 
   render() {
-    const { loading, error, game, locked, draft, message, found, order, view, hare, hareDone } =
-      this.state;
+    const {
+      loading,
+      error,
+      game,
+      locked,
+      draft,
+      message,
+      found,
+      order,
+      view,
+      hare,
+      hareDone,
+      cheatConfirming,
+      cheating,
+      cheatWords,
+    } = this.state;
 
     if (loading) {
       return (
@@ -580,11 +637,53 @@ export class GameScreen extends Component<Props, State> {
               counts={game.counts}
               view={view}
               onView={(next) => this.setState({ view: next })}
+              onCheat={locked || start ? undefined : this.startCheat}
             />
           </div>
         </div>
 
         {hareDone && <HareOverlay hareScore={this.hareScore()} onContinue={this.continueAfterHare} />}
+
+        {cheatConfirming && (
+          <Modal title="Reveal every answer?" onClose={this.cancelCheat}>
+            <p>
+              You'll see every word you missed. Once revealed you can{" "}
+              <strong>never play this game again</strong>.
+            </p>
+            <div class="modal__actions">
+              <button type="button" class="btn btn--ghost" onClick={this.cancelCheat}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn--danger"
+                disabled={cheating}
+                onClick={this.cheat}
+              >
+                {cheating ? "Revealing…" : "Reveal"}
+              </button>
+            </div>
+          </Modal>
+        )}
+
+        {cheatWords && (
+          <Modal
+            title={`Words you missed (${cheatWords.length})`}
+            onClose={() => this.setState({ cheatWords: null })}
+          >
+            {cheatWords.length === 0 ? (
+              <p class="muted">You found every word — nothing missed!</p>
+            ) : (
+              <div class="peek-words">
+                {cheatWords.map((word) => (
+                  <span class="chip" key={word}>
+                    {word}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Modal>
+        )}
       </>
     );
   }

@@ -8,6 +8,7 @@ import type {
   OpponentResponse,
   PeekResult,
   PublicUser,
+  RevealResult,
   SaveResult,
 } from "../shared/types";
 
@@ -107,6 +108,11 @@ export class Api {
       "POST",
       `/api/games/${encodeURIComponent(id)}/peek/${encodeURIComponent(username)}`,
     );
+  }
+
+  /** Reveal every valid answer for a game (locks it). */
+  revealAnswers(id: string): Promise<RevealResult> {
+    return this.request<RevealResult>("POST", `/api/games/${encodeURIComponent(id)}/reveal`);
   }
 
   async getAllTime(sort: AllTimeSort = "points", board: Board = "tortoises"): Promise<AllTimeRow[]> {

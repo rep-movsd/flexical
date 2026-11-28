@@ -37,3 +37,17 @@ export function countAnswersByLength(
 export function totalAnswers(counts: AnswerCount[]): number {
   return counts.reduce((sum, entry) => sum + entry.count, 0);
 }
+
+/**
+ * Every buildable dictionary word of length >= `minLength`, in the dictionary's
+ * (alphabetical) order. Used to reveal the answers for a game.
+ */
+export function listAnswers(allowed: LetterSet, dict: Dictionary, minLength: number): string[] {
+  const out: string[] = [];
+  for (const word of dict.words()) {
+    if (word.length < minLength) continue;
+    if (!isBuildable(word, allowed)) continue;
+    out.push(word);
+  }
+  return out;
+}

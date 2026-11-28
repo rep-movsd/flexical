@@ -8,8 +8,7 @@
 export const MIN_GAME_DATE = "2026-01-01";
 
 /**
- * Whether peeking at another player's answers permanently locks that game for
- * the viewer. Disabled while testing; enable it (starting from a fresh database)
- * before going public.
+ * Whether revealing answers — peeking at another player's words, or cheating to
+ * see every missed word — permanently locks that game for the viewer.
  */
-export const REVEAL_LOCKS = false;
+export const REVEAL_LOCKS = true;

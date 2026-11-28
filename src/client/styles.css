@@ -340,10 +340,18 @@ h3 {
   gap: 8px;
 }
 
+.entry__field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
 .entry__input {
   flex: 1;
   min-width: 0;
-  padding: 12px 14px;
+  width: 100%;
+  padding: 12px 42px 12px 14px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg);
@@ -356,6 +364,28 @@ h3 {
 .entry__input:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* Clear (×) button inside the input, for tapping on touch devices. */
+.entry__clear {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-elev-2);
+  color: var(--fg-muted);
+  cursor: pointer;
+}
+
+.entry__clear:hover {
+  color: var(--fg);
 }
 
 .actions {
@@ -500,6 +530,13 @@ h3 {
   font-weight: 800;
 }
 
+.found__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
 .found__views {
   display: inline-flex;
   gap: 4px;
@@ -522,6 +559,12 @@ h3 {
 .iconbtn--active {
   border-color: var(--accent);
   color: var(--fg);
+}
+
+/* Reveal-answers (cheat) button. */
+.iconbtn--cheat {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* View A: every word found, newest last, as wrapping chips. */
@@ -972,7 +1015,7 @@ h3 {
   }
 
   .entry__input {
-    padding: 10px 12px;
+    padding: 10px 40px 10px 12px;
     font-size: 1rem;
   }
 

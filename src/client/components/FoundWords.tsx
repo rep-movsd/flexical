@@ -26,6 +26,8 @@ interface Props {
   /** Which body to show (controlled by the parent). */
   view: FoundView;
   onView: (view: FoundView) => void;
+  /** When set, shows the reveal-answers (magic wand) button. */
+  onCheat?: () => void;
 }
 
 /**
@@ -93,11 +95,24 @@ export class FoundWords extends Component<Props, { soundOn: boolean }> {
               · Found {words.length}/{this.total()}
             </span>
           </p>
-          <div class="found__views" role="group" aria-label="Found words view">
-            {this.viewButton("words", "Words found, in order", "words")}
-            {this.viewButton("stats", "Remaining by word length", "stats")}
-            {this.viewButton("help", "How to play", "help")}
-            {this.viewButton("settings", "Settings", "settings")}
+          <div class="found__actions">
+            <div class="found__views" role="group" aria-label="Found words view">
+              {this.viewButton("words", "Words found, in order", "words")}
+              {this.viewButton("stats", "Remaining by word length", "stats")}
+              {this.viewButton("help", "How to play", "help")}
+              {this.viewButton("settings", "Settings", "settings")}
+            </div>
+            {this.props.onCheat && (
+              <button
+                type="button"
+                class="iconbtn iconbtn--cheat"
+                title="Reveal all the answers"
+                aria-label="Reveal all the answers"
+                onClick={this.props.onCheat}
+              >
+                <Icon name="wand" size={18} />
+              </button>
+            )}
           </div>
         </div>
 
