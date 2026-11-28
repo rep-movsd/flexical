@@ -379,7 +379,11 @@ export class GameScreen extends Component<Props, State> {
 
   // --- Reveal answers ("cheat") ----------------------------------------------
 
-  private startCheat = (): void => this.setState({ cheatConfirming: true });
+  private startCheat = (): void => {
+    // Already locked: skip the warning and just show the answers again.
+    if (this.state.locked) void this.cheat();
+    else this.setState({ cheatConfirming: true });
+  };
 
   private cancelCheat = (): void => this.setState({ cheatConfirming: false });
 
@@ -637,7 +641,7 @@ export class GameScreen extends Component<Props, State> {
               counts={game.counts}
               view={view}
               onView={(next) => this.setState({ view: next })}
-              onCheat={locked || start ? undefined : this.startCheat}
+              onCheat={start ? undefined : this.startCheat}
             />
           </div>
         </div>
