@@ -195,8 +195,8 @@ export class FoundWords extends Component<Props, { soundOn: boolean }> {
           </li>
           <li>
             <strong>Today's game</strong> gives you one <strong>3-minute timed attempt</strong> — your{" "}
-            <strong>hare</strong> score. The letters stay hidden until you press{" "}
-            <strong>Start</strong>; the timer begins then.
+            <strong>hare</strong> score. The letters stay hidden until you start
+            (click or type); the timer begins then.
           </li>
           <li>
             After the timer runs out — or on any past day — keep playing for your{" "}

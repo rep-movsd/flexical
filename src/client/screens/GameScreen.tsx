@@ -120,6 +120,8 @@ export class GameScreen extends Component<Props, State> {
   private alive = true;
   private saveTimer?: ReturnType<typeof setTimeout>;
   private ticker?: ReturnType<typeof setInterval>;
+  /** Focus the word input once the attempt starts (see componentDidUpdate). */
+  private focusAfterStart = false;
 
   componentDidMount(): void {
     window.addEventListener("keydown", this.onKeyDown);
@@ -131,6 +133,19 @@ export class GameScreen extends Component<Props, State> {
 
   componentWillReceiveProps(next: Props): void {
     if (next.date !== this.props.date) this.load(next.date);
+  }
+
+  componentDidUpdate(): void {
+    // After the attempt starts, put the caret in the word input so typing works
+    // immediately without clicking. Skipped on touch devices so the on-screen
+    // keyboard doesn't cover the tiles.
+    if (this.focusAfterStart) {
+      const el = document.querySelector<HTMLInputElement>(".entry__input");
+      if (el && !el.disabled) {
+        if (navigator.maxTouchPoints === 0) el.focus();
+        this.focusAfterStart = false;
+      }
+    }
   }
 
   componentWillUnmount(): void {
@@ -159,8 +174,14 @@ export class GameScreen extends Component<Props, State> {
   /** Type anywhere: letters build the word without focusing the input. */
   private onKeyDown = (event: KeyboardEvent): void => {
     if (this.state.locked || this.state.hareDone) return;
-    if (this.needsStart()) return; // letters are hidden until Start
     if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    // Before today's attempt starts, any key begins the game.
+    if (this.needsStart()) {
+      event.preventDefault();
+      this.beginGame();
+      return;
+    }
 
     // Spacebar shuffles the letter keys (works even while the input is focused).
     if (event.key === " ") {
@@ -326,8 +347,9 @@ export class GameScreen extends Component<Props, State> {
     this.setState({ hare: next, now });
   };
 
-  /** "Start" button: reveal the letters and begin the timer. */
+  /** "Start" button / first key: reveal the letters and begin the timer. */
   private beginGame = (): void => {
+    this.focusAfterStart = true;
     this.ensureTimerStarted();
   };
 
@@ -537,7 +559,7 @@ export class GameScreen extends Component<Props, State> {
                   class="btn btn--primary btn--block start-btn"
                   onClick={this.beginGame}
                 >
-                  Start
+                  Click or type to start
                 </button>
               )}
 
