@@ -117,11 +117,6 @@ export class Api {
     return rows;
   }
 
-  async listUsernames(): Promise<string[]> {
-    const { usernames } = await this.request<{ usernames: string[] }>("GET", "/api/users");
-    return usernames;
-  }
-
   getOpponentScores(username: string): Promise<OpponentResponse> {
     return this.request<OpponentResponse>(
       "GET",

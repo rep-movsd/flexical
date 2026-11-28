@@ -18,12 +18,9 @@ const HARE_MS = 3 * 60 * 1000;
 
 /** The locally-persisted timer state for one game. */
 interface HareState {
+  /** When the clock started (ms epoch). 0 = not started yet. */
   startedAt: number;
-  /** Absolute deadline while running. */
-  deadline: number | null;
-  /** Milliseconds left while paused. */
-  remaining: number | null;
-  /** Words found during the timed window (the hare boundary). */
+  /** Words found when the timed window ended (the hare boundary). */
   hareCount: number;
   done: boolean;
 }
@@ -111,9 +108,9 @@ function marksFor(
 
 /**
  * Play screen. Today's game has a one-shot 3-minute timed attempt (the "hare"
- * score, tracked locally). The clock starts on the first letter; Insert pauses
- * and resumes. After it — or on any past game — you keep playing untimed (the
- * "tortoise" total).
+ * score, tracked locally from the real elapsed time since you pressed Start —
+ * there is no pause). Until then the letters are hidden. After the timer — or
+ * on any past game — you keep playing untimed (the "tortoise" total).
  */
 export class GameScreen extends Component<Props, State> {
   static contextType = AppContext;
@@ -153,15 +150,16 @@ export class GameScreen extends Component<Props, State> {
   /** Advance the countdown / end the timed attempt when it elapses. */
   private onTick = (): void => {
     const { hare } = this.state;
-    if (!hare || hare.done || hare.deadline == null) return;
+    if (!hare || hare.done || hare.startedAt === 0) return;
     const now = Date.now();
-    if (now >= hare.deadline) this.endHare();
+    if (now - hare.startedAt >= HARE_MS) this.endHare();
     else this.setState({ now });
   };
 
   /** Type anywhere: letters build the word without focusing the input. */
   private onKeyDown = (event: KeyboardEvent): void => {
     if (this.state.locked || this.state.hareDone) return;
+    if (this.needsStart()) return; // letters are hidden until Start
     if (event.ctrlKey || event.metaKey || event.altKey) return;
 
     // Spacebar shuffles the letter keys (works even while the input is focused).
@@ -170,13 +168,6 @@ export class GameScreen extends Component<Props, State> {
       const focused = document.activeElement as HTMLElement | null;
       if (focused && focused.tagName === "BUTTON") focused.blur();
       this.shuffle();
-      return;
-    }
-
-    // Insert pauses / resumes the timed attempt.
-    if (event.key === "Insert") {
-      event.preventDefault();
-      this.togglePause();
       return;
     }
 
@@ -265,17 +256,11 @@ export class GameScreen extends Component<Props, State> {
       if (isToday) {
         const stored = readHare(game.id);
         if (stored) {
-          if (stored.done) {
-            hare = stored;
-          } else if (stored.remaining != null) {
-            hare = stored;
-          } else if (stored.deadline != null && stored.deadline <= Date.now()) {
+          if (!stored.done && stored.startedAt !== 0 && Date.now() - stored.startedAt >= HARE_MS) {
             // The window elapsed while the tab was away.
             hare = {
               ...stored,
               done: true,
-              deadline: null,
-              remaining: null,
               hareCount: Math.max(stored.hareCount, found.length),
             };
             writeHare(game.id, hare);
@@ -285,13 +270,7 @@ export class GameScreen extends Component<Props, State> {
           }
         } else if (me?.harePlayed) {
           // Attempted in another browser; nothing local to resume.
-          hare = {
-            startedAt: 0,
-            deadline: null,
-            remaining: null,
-            hareCount: me.hareCount,
-            done: true,
-          };
+          hare = { startedAt: 0, hareCount: me.hareCount, done: true };
         }
         // else: not attempted yet — the clock starts on the first letter.
       }
@@ -323,37 +302,33 @@ export class GameScreen extends Component<Props, State> {
 
   // --- Timed attempt ---------------------------------------------------------
 
-  /** Start the clock on the first letter of today's game. */
+  /**
+   * True before today's timed attempt has begun: the letters are hidden and a
+   * Start button is shown, so an unsaved open can't be used to study the tiles.
+   */
+  private needsStart(): boolean {
+    const { game, found, hare, hareDone, locked } = this.state;
+    if (!game || game.id !== gameDateString()) return false;
+    if (locked || hareDone) return false;
+    if (found.length > 0) return false;
+    if (hare && (hare.done || hare.startedAt !== 0)) return false;
+    return true;
+  }
+
+  /** Arm the clock for today's game (the Start button, or a first letter). */
   private ensureTimerStarted = (): void => {
     const { game, hare } = this.state;
     if (!game || game.id !== gameDateString()) return;
-    if (hare && (hare.done || hare.deadline != null || hare.remaining != null)) return;
+    if (hare && (hare.done || hare.startedAt !== 0)) return;
     const now = Date.now();
-    const next: HareState = hare
-      ? { ...hare, startedAt: now, deadline: now + HARE_MS }
-      : { startedAt: now, deadline: now + HARE_MS, remaining: null, hareCount: 0, done: false };
+    const next: HareState = { startedAt: now, hareCount: hare?.hareCount ?? 0, done: false };
     writeHare(game.id, next);
     this.setState({ hare: next, now });
   };
 
-  /** Pause or resume the timed attempt (Insert). */
-  private togglePause = (): void => {
-    const { game, hare } = this.state;
-    if (!game || !hare || hare.done) return;
-    if (hare.remaining != null) {
-      const now = Date.now();
-      const next: HareState = { ...hare, deadline: now + hare.remaining, remaining: null };
-      writeHare(game.id, next);
-      this.setState({ hare: next, now });
-    } else if (hare.deadline != null) {
-      const next: HareState = {
-        ...hare,
-        remaining: Math.max(0, hare.deadline - Date.now()),
-        deadline: null,
-      };
-      writeHare(game.id, next);
-      this.setState({ hare: next });
-    }
+  /** "Start" button: reveal the letters and begin the timer. */
+  private beginGame = (): void => {
+    this.ensureTimerStarted();
   };
 
   private endHare = (): void => {
@@ -362,8 +337,6 @@ export class GameScreen extends Component<Props, State> {
     const next: HareState = {
       ...hare,
       done: true,
-      deadline: null,
-      remaining: null,
       hareCount: Math.max(hare.hareCount, found.length),
     };
     writeHare(game.id, next);
@@ -412,7 +385,7 @@ export class GameScreen extends Component<Props, State> {
     // While the timed window runs, every word extends the hare boundary.
     const prevHare = this.state.hare;
     const hare =
-      prevHare && !prevHare.done && prevHare.deadline != null
+      prevHare && !prevHare.done && prevHare.startedAt !== 0
         ? { ...prevHare, hareCount: nextFound.length }
         : prevHare;
     if (hare && hare !== prevHare) writeHare(game.id, hare);
@@ -479,9 +452,9 @@ export class GameScreen extends Component<Props, State> {
     const { hare, now } = this.state;
     if (!hare) return HARE_MS;
     if (hare.done) return 0;
-    if (hare.remaining != null) return hare.remaining;
-    if (hare.deadline != null) return Math.max(0, hare.deadline - now);
-    return HARE_MS;
+    if (hare.startedAt === 0) return HARE_MS;
+    // Real elapsed time since the clock started — no pause.
+    return Math.max(0, HARE_MS - (now - hare.startedAt));
   }
 
   render() {
@@ -504,7 +477,7 @@ export class GameScreen extends Component<Props, State> {
     }
 
     const isToday = game.id === gameDateString();
-    const paused = hare !== null && !hare.done && hare.remaining != null;
+    const start = this.needsStart();
     const disabled = locked || hareDone;
 
     return (
@@ -515,20 +488,7 @@ export class GameScreen extends Component<Props, State> {
               <header class="game__head">
                 <h1 class="title">{isToday ? "Today's game" : game.date}</h1>
                 <div class="game__controls">
-                  {isToday && (
-                    <Timer msLeft={this.hareMsLeft()} paused={paused} done={hare?.done} />
-                  )}
-                  {isToday && hare && !hare.done && (
-                    <button
-                      type="button"
-                      class="iconbtn"
-                      title={paused ? "Resume (Insert)" : "Pause (Insert)"}
-                      aria-label={paused ? "Resume" : "Pause"}
-                      onClick={this.togglePause}
-                    >
-                      <Icon name="pause" size={16} />
-                    </button>
-                  )}
+                  {isToday && <Timer msLeft={this.hareMsLeft()} done={hare?.done} />}
                   <button
                     type="button"
                     class="iconbtn"
@@ -551,7 +511,8 @@ export class GameScreen extends Component<Props, State> {
               <Letters
                 letters={order.length ? order : game.letters}
                 onPick={this.pick}
-                disabled={disabled}
+                disabled={disabled || start}
+                masked={start}
               />
               <WordEntry
                 value={draft}
@@ -567,8 +528,18 @@ export class GameScreen extends Component<Props, State> {
                   this.setState({ draft: filtered, message: null });
                 }}
                 onSubmit={this.tryWord}
-                disabled={disabled}
+                disabled={disabled || start}
               />
+
+              {start && (
+                <button
+                  type="button"
+                  class="btn btn--primary btn--block start-btn"
+                  onClick={this.beginGame}
+                >
+                  Start
+                </button>
+              )}
 
               <div class="flash-slot">
                 {message && (

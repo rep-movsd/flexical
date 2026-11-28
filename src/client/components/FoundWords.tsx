@@ -1,7 +1,8 @@
 import { Component } from "preact";
 import type { AnswerCount, BadgeKind } from "../../shared/types";
-import { Icon } from "./icons";
+import { Icon, type IconName } from "./icons";
 import { BadgeIcon } from "./BadgeIcons";
+import { click, isSoundOn, setSoundOn } from "../sound";
 
 export interface FoundWord {
   word: string;
@@ -10,7 +11,7 @@ export interface FoundWord {
   marks: BadgeKind[];
 }
 
-export type FoundView = "words" | "stats" | "help";
+export type FoundView = "words" | "stats" | "help" | "settings";
 
 interface Props {
   words: FoundWord[];
@@ -29,16 +30,42 @@ interface Props {
 
 /**
  * Found-words panel. The header shows total points and progress ("Found M/N",
- * N = every possible answer). Three icon buttons switch the body between a
- * wrapping word list, per-length progress bars, and the game explanation.
+ * N = every possible answer). Four icon buttons switch the body between a
+ * wrapping word list, per-length progress bars, the game explanation, and
+ * settings.
  */
-export class FoundWords extends Component<Props> {
+export class FoundWords extends Component<Props, { soundOn: boolean }> {
+  /** The scrolling word log, so we can keep the newest chip in view. */
+  private logEl: HTMLDivElement | null = null;
+
+  state = { soundOn: isSoundOn() };
+
+  componentDidMount(): void {
+    this.scrollLogToBottom();
+  }
+
+  componentDidUpdate(prev: Props): void {
+    if (prev.words !== this.props.words || prev.view !== this.props.view) {
+      this.scrollLogToBottom();
+    }
+  }
+
+  /** Keep the newest chip visible when the log overflows. */
+  private scrollLogToBottom(): void {
+    const el = this.logEl;
+    if (el) el.scrollTop = el.scrollHeight;
+  }
+
+  private setLogRef = (el: HTMLDivElement | null): void => {
+    this.logEl = el;
+  };
+
   /** Total possible answers across every length. */
   private total(): number {
     return this.props.counts.reduce((sum, entry) => sum + entry.count, 0);
   }
 
-  private viewButton(view: FoundView, title: string, icon: "words" | "stats" | "help") {
+  private viewButton(view: FoundView, title: string, icon: IconName) {
     const active = this.props.view === view;
     return (
       <button
@@ -67,9 +94,10 @@ export class FoundWords extends Component<Props> {
             </span>
           </p>
           <div class="found__views" role="group" aria-label="Found words view">
-            {this.viewButton("words", "Words found, newest first", "words")}
+            {this.viewButton("words", "Words found, in order", "words")}
             {this.viewButton("stats", "Remaining by word length", "stats")}
             {this.viewButton("help", "How to play", "help")}
+            {this.viewButton("settings", "Settings", "settings")}
           </div>
         </div>
 
@@ -77,25 +105,27 @@ export class FoundWords extends Component<Props> {
           ? this.renderWords()
           : view === "stats"
             ? this.renderStats()
-            : this.renderHelp()}
+            : view === "help"
+              ? this.renderHelp()
+              : this.renderSettings()}
       </section>
     );
   }
 
-  /** View A: every word found, newest first, as plain wrapping text. */
+  /** View A: every word found, in the order it was typed, as chips. */
   private renderWords() {
     const { words } = this.props;
     if (words.length === 0) {
       return <p class="muted">No words yet.</p>;
     }
     return (
-      <p class="found__log">
-        {words
-          .slice()
-          .reverse()
-          .map((entry) => entry.word)
-          .join(" ")}
-      </p>
+      <div class="found__log" ref={this.setLogRef}>
+        {words.map((entry) => (
+          <span class="found__word" key={entry.word}>
+            {entry.word}
+          </span>
+        ))}
+      </div>
     );
   }
 
@@ -165,16 +195,15 @@ export class FoundWords extends Component<Props> {
           </li>
           <li>
             <strong>Today's game</strong> gives you one <strong>3-minute timed attempt</strong> — your{" "}
-            <strong>hare</strong> score. The timer starts when you enter your{" "}
-            <strong>first letter</strong>.
+            <strong>hare</strong> score. The letters stay hidden until you press{" "}
+            <strong>Start</strong>; the timer begins then.
           </li>
           <li>
             After the timer runs out — or on any past day — keep playing for your{" "}
             <strong>tortoise</strong> total. It has no time limit and never expires.
           </li>
           <li>
-            <strong>Keys:</strong> <kbd>Space</kbd> shuffles the letters; <kbd>Insert</kbd>{" "}
-            pauses/resumes the timer.
+            <strong>Keys:</strong> <kbd>Space</kbd> shuffles the letters.
           </li>
           <li>A new game arrives every day at midnight IST.</li>
           <li>Your words save automatically, so you can come back and keep going.</li>
@@ -185,6 +214,28 @@ export class FoundWords extends Component<Props> {
             Replay past days from the <a href="/archive">Archive</a>.
           </li>
         </ul>
+      </div>
+    );
+  }
+
+  /** View D: settings. */
+  private renderSettings() {
+    const { soundOn } = this.state;
+    return (
+      <div class="settings">
+        <label class="setting">
+          <input
+            type="checkbox"
+            checked={soundOn}
+            onChange={(event) => {
+              const on = (event.target as HTMLInputElement).checked;
+              setSoundOn(on);
+              this.setState({ soundOn: on });
+              if (on) click(0); // audible confirmation
+            }}
+          />
+          <span>Sound effects</span>
+        </label>
       </div>
     );
   }

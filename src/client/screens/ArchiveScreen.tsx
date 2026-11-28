@@ -185,21 +185,23 @@ export class ArchiveScreen extends Component<Props, State> {
         )}
 
         {(top.length > 0 || me) && (
-          <table class="board">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Player</th>
-                <th class="board__num">{board === "hares" ? "Hare" : "Total"}</th>
-                <th class="board__badge">☀</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {top.map((row) => this.row(row, false))}
-              {me && this.row(me, true)}
-            </tbody>
-          </table>
+          <div class="scroll">
+            <table class="board">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Player</th>
+                  <th class="board__num">{board === "hares" ? "Hare" : "Total"}</th>
+                  <th class="board__badge">☀</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {top.map((row) => this.row(row, false))}
+                {me && this.row(me, true)}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {confirming && (

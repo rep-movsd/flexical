@@ -64,17 +64,14 @@ h3 {
 
 /* ---------- Shell / navigation ---------- */
 
+/* The whole app is one fixed-height column: the top bar is fixed and the
+   content area fills the rest. Only designated inner panes scroll — never the
+   page itself. */
 .shell {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-/* The game screen fills exactly one viewport; its inner panel scrolls instead
-   of the page, so the found words panel can "fit the height". */
-.shell--game {
   height: 100vh;
   height: 100dvh;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
 }
 
@@ -85,23 +82,23 @@ h3 {
   max-width: 1080px;
   margin: 0 auto;
   padding: 20px 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* The game board spans the full screen width. */
 .content--wide {
   max-width: none;
-  display: flex;
-  flex-direction: column;
 }
 
 .topbar {
-  position: sticky;
-  top: 0;
+  flex: 0 0 auto;
   z-index: 10;
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 12px 24px;
+  gap: 16px;
+  padding: 10px 16px;
   background: rgba(18, 18, 28, 0.85);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -112,20 +109,25 @@ h3 {
   font-size: 1.15rem;
   letter-spacing: 0.02em;
   color: var(--fg);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .topbar__links {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin-left: auto;
+  flex: 0 0 auto;
 }
 
 /* Nav items are icon buttons, right-aligned in the bar. */
 .navicon {
   display: inline-grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-sm);
   color: var(--fg-muted);
 }
@@ -145,16 +147,24 @@ h3 {
 }
 
 .navicon--account {
-  margin-left: 10px;
+  margin-left: 6px;
 }
 
 /* ---------- Panels & pages ---------- */
 
 .page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   padding: 8px 0;
+  /* Fits the viewport normally; only scrolls if a form genuinely can't fit
+     (e.g. a very short window). List screens scroll their own inner pane. */
+  overflow-y: auto;
 }
 
 .page--narrow {
+  width: 100%;
   max-width: 560px;
   margin: 0 auto;
 }
@@ -240,10 +250,6 @@ h3 {
   font-size: 1.2rem;
   font-weight: 700;
   color: var(--accent-2);
-}
-
-.timer--paused {
-  color: var(--fg-muted);
 }
 
 .timer--done {
@@ -403,6 +409,22 @@ h3 {
   text-align: center;
 }
 
+/* The "Start" button shown before today's timed attempt begins. */
+.start-btn {
+  margin-top: 12px;
+  animation: start-flash 1.05s ease-in-out infinite;
+}
+
+@keyframes start-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
 /* ---------- Flash / result ---------- */
 
 .flash-slot {
@@ -502,14 +524,29 @@ h3 {
   color: var(--fg);
 }
 
-/* View A: chronological word log — compact font, plain default flow. */
+/* View A: every word found, newest last, as wrapping chips. */
 .found__log {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   margin: 10px 0 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 8px;
+  font-size: 1.6rem;
+  line-height: 1.4;
+}
+
+/* One found word, as a chip. */
+.found__word {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 18px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elev-2);
+  font-weight: 600;
 }
 
 /* Help tab: how to play. */
@@ -544,6 +581,30 @@ h3 {
   background: var(--bg-elev-2);
   font-family: inherit;
   font-size: 0.85em;
+}
+
+/* Settings tab. */
+.settings {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 6px;
+}
+
+.setting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  cursor: pointer;
+}
+
+.setting input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 .found__lanes {
@@ -688,6 +749,13 @@ h3 {
 
 /* ---------- Leaderboard ---------- */
 
+/* A pane that fills the remaining height and scrolls its own content. */
+.scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .board {
   width: 100%;
   border-collapse: collapse;
@@ -820,6 +888,28 @@ h3 {
 /* On phones the desktop panes are flattened so their panels become
    direct rows of a single column: word box → found words panel. */
 @media (max-width: 640px) {
+  .topbar {
+    gap: 10px;
+    padding: 8px 12px;
+  }
+
+  .brand {
+    font-size: 1.05rem;
+  }
+
+  .topbar__links {
+    gap: 2px;
+  }
+
+  .navicon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .navicon--account {
+    margin-left: 2px;
+  }
+
   .content {
     padding: 10px;
   }
@@ -1053,7 +1143,8 @@ h3 {
 }
 
 .opponent__list {
-  max-height: 60vh;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

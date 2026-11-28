@@ -8,10 +8,10 @@ function format(ms: number): string {
 }
 
 /** mm:ss countdown for the hare (timed) attempt. */
-export class Timer extends Component<{ msLeft: number; paused?: boolean; done?: boolean }> {
+export class Timer extends Component<{ msLeft: number; done?: boolean }> {
   render() {
-    const { msLeft, paused, done } = this.props;
-    const cls = "timer" + (paused ? " timer--paused" : "") + (done ? " timer--done" : "");
+    const { msLeft, done } = this.props;
+    const cls = "timer" + (done ? " timer--done" : "");
     return <span class={cls}>{format(msLeft)}</span>;
   }
 }

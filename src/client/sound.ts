@@ -1,7 +1,33 @@
 // Tiny WebAudio blips — no asset files. The AudioContext is created lazily on
 // the first user gesture so browser autoplay policies don't block it.
 
+const SOUND_KEY = "flexical:sound";
+
 let ctx: AudioContext | null = null;
+let enabled = readEnabled();
+
+function readEnabled(): boolean {
+  try {
+    return localStorage.getItem(SOUND_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+/** Whether sound effects are currently enabled. */
+export function isSoundOn(): boolean {
+  return enabled;
+}
+
+/** Enable or disable sound effects (persisted locally). */
+export function setSoundOn(on: boolean): void {
+  enabled = on;
+  try {
+    localStorage.setItem(SOUND_KEY, on ? "on" : "off");
+  } catch {
+    // ignore (private mode, quota, …)
+  }
+}
 
 function audio(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -17,6 +43,7 @@ function audio(): AudioContext | null {
 }
 
 function blip(freq: number, type: OscillatorType, peak: number, duration: number): void {
+  if (!enabled) return;
   const c = audio();
   if (!c) return;
   const t = c.currentTime;

@@ -103,30 +103,32 @@ export class LeaderboardScreen extends Component<{}, State> {
         {!loading && rows.length === 0 && <p class="muted">No scores yet.</p>}
 
         {sorted.length > 0 && (
-          <table class="board">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Player</th>
-                {this.header(board === "hares" ? "Hare" : "Points", "points")}
-                {this.header("Games", "games")}
-                {this.header("Avg", "avg")}
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((row) => (
-                <tr key={row.username}>
-                  <td>{row.rank}</td>
-                  <td>
-                    <a href={`/opponents?u=${encodeURIComponent(row.username)}`}>{row.username}</a>
-                  </td>
-                  <td class="board__num">{row.total}</td>
-                  <td class="board__num">{row.games}</td>
-                  <td class="board__num">{row.avg}</td>
+          <div class="scroll">
+            <table class="board">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Player</th>
+                  {this.header(board === "hares" ? "Hare" : "Points", "points")}
+                  {this.header("Games", "games")}
+                  {this.header("Avg", "avg")}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sorted.map((row) => (
+                  <tr key={row.username}>
+                    <td>{row.rank}</td>
+                    <td>
+                      <a href={`/opponents?u=${encodeURIComponent(row.username)}`}>{row.username}</a>
+                    </td>
+                    <td class="board__num">{row.total}</td>
+                    <td class="board__num">{row.games}</td>
+                    <td class="board__num">{row.avg}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     );

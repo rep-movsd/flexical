@@ -48,6 +48,12 @@ export class AuthScreen extends Component<{}, State> {
         mode === "register"
           ? await api.register(username, password)
           : await api.login(username, password);
+      // Signing in wipes all local storage (e.g. the locally tracked timer).
+      try {
+        localStorage.clear();
+      } catch {
+        // ignore (private mode, …)
+      }
       store.setSession(user);
       route("/");
     } catch (error) {

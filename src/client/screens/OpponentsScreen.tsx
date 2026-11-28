@@ -4,7 +4,6 @@ import type { OpponentResponse } from "../../shared/types";
 import { BadgeIcons } from "../components/BadgeIcons";
 
 interface State {
-  usernames: string[];
   query: string;
   loading: boolean;
   error: string | null;
@@ -15,16 +14,10 @@ interface State {
 export class OpponentsScreen extends Component<{}, State> {
   static contextType = AppContext;
 
-  state: State = { usernames: [], query: "", loading: false, error: null, data: null };
+  state: State = { query: "", loading: false, error: null, data: null };
   private alive = true;
 
   componentDidMount(): void {
-    const { api } = this.context as AppContextValue;
-    api
-      .listUsernames()
-      .then((usernames) => this.alive && this.setState({ usernames }))
-      .catch(() => undefined);
-
     const initial = new URLSearchParams(window.location.search).get("u");
     if (initial) {
       this.setState({ query: initial });
@@ -53,7 +46,7 @@ export class OpponentsScreen extends Component<{}, State> {
   };
 
   render() {
-    const { usernames, query, loading, error, data } = this.state;
+    const { query, loading, error, data } = this.state;
 
     return (
       <div class="page page--narrow">
@@ -63,7 +56,6 @@ export class OpponentsScreen extends Component<{}, State> {
         <form class="opponent__form" onSubmit={this.submit}>
           <input
             class="field__input"
-            list="opponent-names"
             placeholder="Username"
             autoComplete="off"
             autoCapitalize="off"
@@ -72,11 +64,6 @@ export class OpponentsScreen extends Component<{}, State> {
             value={query}
             onInput={(event) => this.setState({ query: (event.target as HTMLInputElement).value })}
           />
-          <datalist id="opponent-names">
-            {usernames.map((name) => (
-              <option value={name} key={name} />
-            ))}
-          </datalist>
           <button type="submit" class="btn btn--primary">
             Show scores
           </button>

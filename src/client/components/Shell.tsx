@@ -31,7 +31,7 @@ export class Shell extends Component<{ children?: ComponentChildren }> {
     const accountLabel = session?.username ?? "Sign in";
 
     return (
-      <div class={wide ? "shell shell--game" : "shell"}>
+      <div class="shell">
         <header class="topbar">
           <a href="/" class="brand">
             Flexical
